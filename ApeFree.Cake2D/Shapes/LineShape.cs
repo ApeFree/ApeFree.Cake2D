@@ -19,14 +19,14 @@ namespace ApeFree.Cake2D.Shapes
         /// <summary>
         /// 线长
         /// </summary>
-        public double Length => GdiMath.CalculateLengthFromTwoPoints(StartPoint, EndPoint);
+        public double Length => Math2D.CalculateLengthFromTwoPoints(StartPoint, EndPoint);
 
         /// <inheritdoc/>
         public void Rotate(PointF centralPoint, float angle)
         {
             var cp = CentrePoint;
-            StartPoint = GdiMath.PointAround(cp, StartPoint, angle);
-            EndPoint = GdiMath.PointAround(cp, EndPoint, angle);
+            StartPoint = Math2D.PointAround(cp, StartPoint, angle);
+            EndPoint = Math2D.PointAround(cp, EndPoint, angle);
         }
 
         /// <inheritdoc/>
@@ -36,16 +36,16 @@ namespace ApeFree.Cake2D.Shapes
             PointF center = CentrePoint;
 
             // 计算起点和中心点的距离
-            float startDistance = (float)GdiMath.CalculateLengthFromTwoPoints(StartPoint, center);
+            float startDistance = (float)Math2D.CalculateLengthFromTwoPoints(StartPoint, center);
 
             // 根据缩放比例计算新的距离
             float newStartDistance = startDistance * scaling;
 
             // 计算新的起点和终点
-            float angle = (float)GdiMath.CalculateAngleFromTwoPoints(center, StartPoint);
+            float angle = (float)Math2D.CalculateAngleFromTwoPoints(center, StartPoint);
 
-            StartPoint = GdiMath.CalculatePointOnCircle(new PointF(CentrePoint.X, CentrePoint.Y), newStartDistance, angle);
-            EndPoint = GdiMath.CalculatePointOnCircle(new PointF(CentrePoint.X, CentrePoint.Y), newStartDistance, 360 - angle);
+            StartPoint = Math2D.CalculatePointOnCircle(new PointF(CentrePoint.X, CentrePoint.Y), newStartDistance, angle);
+            EndPoint = Math2D.CalculatePointOnCircle(new PointF(CentrePoint.X, CentrePoint.Y), newStartDistance, 360 - angle);
         }
 
         /// <inheritdoc/>
@@ -105,7 +105,7 @@ namespace ApeFree.Cake2D.Shapes
         public LineShape(Point startPoint, double length, float angle)
         {
             StartPoint = startPoint;
-            EndPoint = GdiMath.CalculatePointOnCircle(startPoint, (float)length, angle);
+            EndPoint = Math2D.CalculatePointOnCircle(startPoint, (float)length, angle);
         }
     }
 }

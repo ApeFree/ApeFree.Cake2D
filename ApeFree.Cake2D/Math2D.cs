@@ -10,7 +10,7 @@ namespace ApeFree.Cake2D
     /// <summary>
     /// 绘图数学库
     /// </summary>
-    public static class GdiMath
+    public static class Math2D
     {
         /// <summary>
         /// 计算圆上点的坐标

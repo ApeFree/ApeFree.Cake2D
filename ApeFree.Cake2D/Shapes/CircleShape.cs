@@ -64,7 +64,7 @@ namespace ApeFree.Cake2D.Shapes
 
         public void Rotate(PointF centralPoint, float angle)
         {
-            centerPoint = GdiMath.PointAround(centralPoint, centerPoint, angle);
+            centerPoint = Math2D.PointAround(centralPoint, centerPoint, angle);
         }
 
         public void Scale(float scaling)

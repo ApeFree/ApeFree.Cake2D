@@ -5,12 +5,12 @@ using System.Linq;
 
 namespace ApeFree.Cake2D.Shapes
 {
-    /// <summary>多边形</summary>
-    public class PolygonShape : IPolygon
+    /// <summary>多边形基类</summary>
+    public class BasePolygonShape : IPolygon
     {
         protected List<PointF> _points = new List<PointF>(); // 存储多边形的各个顶点坐标
 
-        public PolygonShape(IEnumerable<PointF> points)
+        public BasePolygonShape(IEnumerable<PointF> points)
         {
             _points.AddRange(points);
         }
@@ -122,5 +122,11 @@ namespace ApeFree.Cake2D.Shapes
                 return new Point((int)cx, (int)cy);
             }
         }
+    }
+
+    public class PolygonShape : BasePolygonShape
+    {
+        public List<PointF> Points => _points;
+        public PolygonShape(IEnumerable<PointF> points) : base(points) { }
     }
 }

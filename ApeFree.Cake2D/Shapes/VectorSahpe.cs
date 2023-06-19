@@ -24,7 +24,7 @@ namespace ApeFree.Cake2D.Shapes
 
         public float Angle { get; set; }
 
-        public PointF EndPoint => GdiMath.CalculatePointOnCircle(StartPoint, Length, Angle);
+        public PointF EndPoint => Math2D.CalculatePointOnCircle(StartPoint, Length, Angle);
 
         public IEnumerable<PointF> Points => new PointF[] { StartPoint, EndPoint };
 

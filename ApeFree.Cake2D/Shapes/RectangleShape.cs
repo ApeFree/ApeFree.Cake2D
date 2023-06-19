@@ -3,7 +3,7 @@ using System.Drawing;
 
 namespace ApeFree.Cake2D.Shapes
 {
-    public class RectangleShape : PolygonShape, IRectangle
+    public class RectangleShape : BasePolygonShape, IRectangle
     {
         private float _width;
         private float _height;
