@@ -59,10 +59,16 @@ namespace ApeFree.Cake2D
                     case CircleShape shape:
                         DrawCircleHandler(layer.Style, shape);
                         break;
+                    case PolygonShape shape:
+                        DrawPolygonHandler(layer.Style, shape);
+                        break;
                 }
             }
         }
 
+
+        /// <summary>绘制多边形</summary>
+        public Layer<TStyle, PolygonShape> DrawPolygon(TStyle style, PolygonShape graphic) => Draw(style, graphic);
         /// <summary>绘制线</summary>
         public Layer<TStyle, LineShape> DrawLine(TStyle style, LineShape graphic) => Draw(style, graphic);
 
@@ -95,6 +101,8 @@ namespace ApeFree.Cake2D
         protected abstract void DrawRectangleHandler(TStyle style, RectangleShape graphic);
         /// <summary>绘制圆形的实现过程</summary> 
         protected abstract void DrawCircleHandler(TStyle style, CircleShape graphic);
+        /// <summary>绘制多边形的实现过程</summary> 
+        protected abstract void DrawPolygonHandler(TStyle style, PolygonShape shape);
     }
 
     /// <summary>
