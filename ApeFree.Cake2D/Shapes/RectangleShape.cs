@@ -3,7 +3,7 @@ using System.Drawing;
 
 namespace ApeFree.Cake2D.Shapes
 {
-    public class RectangleShape : BasePolygonShape, IRectangle
+    public class RectangleShape : PolygonShape, IRectangle
     {
         private float _width;
         private float _height;
@@ -58,8 +58,7 @@ namespace ApeFree.Cake2D.Shapes
             points[1] = new PointF(center.X + (int)(0.5 * Width * cos - 0.5 * Height * sin), center.Y - (int)(0.5 * Height * cos + 0.5 * Width * sin));
             points[2] = new PointF(center.X + (int)(0.5 * Width * cos + 0.5 * Height * sin), center.Y + (int)(0.5 * Height * cos - 0.5 * Width * sin));
             points[3] = new PointF(center.X - (int)(0.5 * Width * cos - 0.5 * Height * sin), center.Y + (int)(0.5 * Height * cos + 0.5 * Width * sin));
-            base._points.Clear();
-            base._points.AddRange(points);
+            base.Points = points;
         }
 
         public float Left
