@@ -8,8 +8,8 @@ namespace ApeFree.Cake2D.Shapes
 {
     public class CircleShape : ICircle, IPlaneShape
     {
-        private PointF centerPoint;
         private float radius;
+        private PointF centerPoint;
 
         public CircleShape(PointF centerPoint, float radius)
         {
@@ -17,7 +17,7 @@ namespace ApeFree.Cake2D.Shapes
             this.radius = radius;
         }
 
-        public PointF CenterPoint => centerPoint;
+        public PointF CenterPoint { get => centerPoint; set => centerPoint = value; }
 
         public float Radius
         {
