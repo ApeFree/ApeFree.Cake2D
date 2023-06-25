@@ -18,9 +18,14 @@ namespace ApeFree.Cake2D
         public IShape Shape { get; set; }
 
         /// <summary>
-        /// 可见性
+        /// 可见性，画板绘制时是否绘制当前图层
         /// </summary>
-        public bool Visible { get; set; }
+        public bool Visible { get; set; } = true;
+
+        /// <summary>
+        /// 可选性，图层是否可以被选中
+        /// </summary>
+        public bool Selectable { get; set; } = true;
 
         /// <summary>
         /// 画板
