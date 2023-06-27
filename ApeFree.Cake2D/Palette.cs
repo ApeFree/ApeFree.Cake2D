@@ -62,6 +62,11 @@ namespace ApeFree.Cake2D
                     case PolygonShape shape:
                         DrawPolygonHandler(layer.Style, shape);
                         break;
+                    case TextShape shape:
+                        DrawTextHandler(layer.Style, shape);
+                        break;
+                    default:
+                        break;
                 }
             }
         }
@@ -83,6 +88,8 @@ namespace ApeFree.Cake2D
 
         /// <summary>绘制圆形</summary>
         public Layer<TStyle, CircleShape> DrawCircle(TStyle style, CircleShape graphic) => Draw(style, graphic);
+        /// <summary>绘制文本</summary>
+        public Layer<TStyle, TextShape> DrawText(TStyle style, TextShape graphic) => Draw(style, graphic);
 
         public Layer<TStyle, TShape> Draw<TShape>(TStyle style, TShape graphic) where TShape : IShape
         {
@@ -103,6 +110,27 @@ namespace ApeFree.Cake2D
         protected abstract void DrawCircleHandler(TStyle style, CircleShape graphic);
         /// <summary>绘制多边形的实现过程</summary> 
         protected abstract void DrawPolygonHandler(TStyle style, PolygonShape shape);
+        /// <summary>绘制文本的实现过程</summary> 
+        protected abstract void DrawTextHandler(TStyle style, TextShape shape);
+
+        /// <summary>
+        /// 通过投射点查找顶部图层
+        /// </summary>
+        /// <param name="point">投射点</param>
+        /// <returns></returns>
+        public Layer<TStyle> SelectTopLayerByCastingPoint(PointF point)
+        {
+            for (int i = Layers.Count - 1; i >= 0; i--)
+            {
+                var layer = Layers[i];
+
+                if (layer.Visible && layer.Selectable && layer.Shape.Contains(point))
+                {
+                    return layer;
+                }
+            }
+            return null;
+        }
     }
 
     /// <summary>
