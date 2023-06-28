@@ -38,12 +38,16 @@ namespace ApeFree.Cake2D
         public bool Focusable { get; set; }
 
         /// <summary>
+        /// 附带数据
+        /// </summary>
+        public object Tag { get; set; }
+
+        /// <summary>
         /// 构造图层
         /// </summary>
         /// <param name="parent">所属画板</param>
         internal Layer(Palette<TStyle> parent)
         {
-            Visible = true;
             Parent = parent;
         }
 
