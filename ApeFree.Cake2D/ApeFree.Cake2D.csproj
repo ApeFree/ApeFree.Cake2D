@@ -14,7 +14,7 @@
 	  <Description>平面图像绘制框架</Description>
 	  <RepositoryUrl></RepositoryUrl>
 	  <PackageProjectUrl>https://blog.csdn.net/lgj123xj/category_11811822.html</PackageProjectUrl>
-	  <Version>0.0.1</Version>
+	  <Version>0.0.2</Version>
 	  <GenerateDocumentationFile>true</GenerateDocumentationFile>
 	  <PackageIcon>ApeFree_64px.png</PackageIcon>
   </PropertyGroup>
