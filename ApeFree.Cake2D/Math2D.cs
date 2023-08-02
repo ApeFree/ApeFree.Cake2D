@@ -1,4 +1,5 @@
-﻿using System;
+﻿using ApeFree.Cake2D.Shapes;
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
@@ -78,6 +79,62 @@ namespace ApeFree.Cake2D
             var angle = CalculateAngleFromTwoPoints(fixedPoint, activePoint);
             var newPoint = CalculatePointOnCircle(fixedPoint, distance, (float)angle);
             return newPoint;
+        }
+
+        /// <summary>
+        /// 一个点是否位于一个由一组点构成的多边形内部
+        /// </summary>
+        /// <param name="polygon">按序可构成多边形的一组点</param>
+        /// <param name="point">待测点</param>
+        /// <returns></returns>
+        public static bool IsPointInPolygon(PointF[] polygon, PointF point)
+        {
+            int count = 0;
+            int n = polygon.Length;
+
+            for (int i = 0, j = n - 1; i < n; j = i++)
+            {
+                if (((polygon[i].Y > point.Y) != (polygon[j].Y > point.Y)) &&
+                    (point.X < (polygon[j].X - polygon[i].X) * (point.Y - polygon[i].Y) / (polygon[j].Y - polygon[i].Y) + polygon[i].X))
+                {
+                    count++;
+                }
+            }
+
+            return count % 2 == 1;
+        }
+
+        /// <summary>
+        /// 计算一组点的正外接矩形
+        /// </summary>
+        /// <param name="points"></param>
+        /// <returns></returns>
+        public static RectangleShape GetBounds(PointF[] points)
+        {
+            float minx = float.MaxValue, miny = float.MaxValue, maxx = float.MinValue, maxy = float.MinValue;
+
+            foreach (var p in points)
+            {
+                if (p.X < minx)
+                {
+                    minx = p.X;
+                }
+                else if (p.X > maxx)
+                {
+                    maxx = p.X;
+                }
+
+                if (p.Y < miny)
+                {
+                    miny = p.Y;
+                }
+                else if (p.Y > maxy)
+                {
+                    maxy = p.Y;
+                }
+            }
+
+            return new RectangleShape(new PointF(minx, miny), maxx - minx, maxy - miny);
         }
     }
 }
