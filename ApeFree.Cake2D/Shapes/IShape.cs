@@ -29,7 +29,7 @@ namespace ApeFree.Cake2D.Shapes
         bool Contains(PointF point);
 
         /// <summary>图形上所有的点</summary>
-        IEnumerable<PointF> Points { get; }
+        PointF[] Points { get; }
 
         /// <summary>获取外接矩形</summary>
         RectangleShape GetBounds();

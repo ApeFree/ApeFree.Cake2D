@@ -13,7 +13,7 @@ namespace ApeFree.Cake2D.Shapes
         private PointF CentrePoint => new PointF((StartPoint.X + EndPoint.X) / 2, (StartPoint.Y + EndPoint.Y) / 2);
 
         /// <inheritdoc/>
-        public IEnumerable<PointF> Points => new PointF[] { StartPoint, EndPoint };
+        public PointF[] Points => new PointF[] { StartPoint, EndPoint };
 
 
         /// <summary>

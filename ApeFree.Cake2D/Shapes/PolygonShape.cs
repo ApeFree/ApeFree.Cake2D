@@ -68,7 +68,7 @@ namespace ApeFree.Cake2D.Shapes
         }
 
         /// <inheritdoc/>
-        public IEnumerable<PointF> Points { get; set; }
+        public PointF[] Points { get; set; }
 
         /// <inheritdoc/>
         public virtual RectangleShape GetBounds()
