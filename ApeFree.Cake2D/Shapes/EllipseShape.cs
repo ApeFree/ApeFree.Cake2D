@@ -8,6 +8,7 @@ namespace ApeFree.Cake2D.Shapes
 
         public EllipseShape(float left, float top, float width, float height) : base(left, top, width, height) { }
 
+        /// <inheritdoc/>
         public PointF CenterPoint => Centroid;
     }
 }

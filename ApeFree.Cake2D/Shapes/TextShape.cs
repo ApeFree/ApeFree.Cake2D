@@ -16,28 +16,45 @@ namespace ApeFree.Cake2D.Shapes
             Height = height;
             Text = text;
         }
+       
+        /// <summary>
+        /// 文本的左上角坐标
+        /// </summary>
         public PointF Location { get; set; }
 
+        /// <summary>
+        /// 文本区域宽度
+        /// </summary>
         public float Width { get; set; }
 
+        /// <summary>
+        /// 文本区域高度
+        /// </summary>
         public float Height { get; set; }
 
+        /// <summary>
+        /// 文本内容
+        /// </summary>
         public string Text { get; set; }
 
+        /// <inheritdoc/>
         public void Scale(float scaling)
         {
 
         }
 
+        /// <inheritdoc/>
         public void Offset(float distanceX, float distanceY)
         {
             Location = Location.Add(distanceX, distanceY);
         }
 
+        /// <inheritdoc/>
         public void Rotate(PointF centralPoint, float angle)
         {
         }
 
+        /// <inheritdoc/>
         public bool Contains(PointF point)
         {
             if (point.X >= Location.X && point.X <= Location.X + Width && point.Y >= Height && point.Y <= Location.Y + Height)
@@ -50,11 +67,15 @@ namespace ApeFree.Cake2D.Shapes
             }
         }
 
+        /// <inheritdoc/>
         public RectangleShape GetBounds()
         {
             return new RectangleShape(Location, Width, Height);
         }
 
+        /// <summary>
+        /// 距离容器左边距离
+        /// </summary>
         public float Left
         {
             get { return Location.X; }
@@ -65,6 +86,9 @@ namespace ApeFree.Cake2D.Shapes
             }
         }
 
+        /// <summary>
+        /// 距离容器顶部距离
+        /// </summary>
         public float Top
         {
             get { return Location.Y; }
@@ -75,7 +99,8 @@ namespace ApeFree.Cake2D.Shapes
             }
         }
 
-        public IEnumerable<PointF> Points => new[] { Location };
+        /// <inheritdoc/>
+        public PointF[] Points => new[] { Location };
 
     }
 }

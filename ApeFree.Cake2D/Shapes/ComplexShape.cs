@@ -17,15 +17,15 @@ namespace ApeFree.Cake2D.Shapes
             Shapes = new LinkedList<IShape>();
         }
 
+        /// <summary>
+        /// 内部图形集合
+        /// </summary>
         public LinkedList<IShape> Shapes { get; }
 
-        public IEnumerable<PointF> Points => Shapes.Select(g => g.Points).SelectMany(ps=>ps);
-
-        /// <summary>
         /// <inheritdoc/>
-        /// </summary>
-        /// <param name="centralPoint"></param>
-        /// <param name="angle"></param>
+        public PointF[] Points => Shapes.Select(g => g.Points).SelectMany(ps => ps).ToArray();
+
+        /// <inheritdoc/>
         public void Rotate(PointF centralPoint, float angle)
         {
             foreach (IShape g in Shapes)
@@ -34,10 +34,7 @@ namespace ApeFree.Cake2D.Shapes
             }
         }
 
-        /// <summary>
         /// <inheritdoc/>
-        /// </summary>
-        /// <param name="scaling"></param>
         public void Scale(float scaling)
         {
             foreach (IShape g in Shapes)
@@ -46,11 +43,7 @@ namespace ApeFree.Cake2D.Shapes
             }
         }
 
-        /// <summary>
         /// <inheritdoc/>
-        /// </summary>
-        /// <param name="distanceX"></param>
-        /// <param name="distanceY"></param>
         public void Offset(float distanceX, float distanceY)
         {
             foreach (IShape g in Shapes)
@@ -59,6 +52,7 @@ namespace ApeFree.Cake2D.Shapes
             }
         }
 
+        /// <inheritdoc/>
         public bool Contains(PointF point)
         {
             foreach (IShape g in Shapes)
@@ -71,6 +65,7 @@ namespace ApeFree.Cake2D.Shapes
             return false;
         }
 
+        /// <inheritdoc/>
         public RectangleShape GetBounds()
         {
             throw new NotImplementedException();

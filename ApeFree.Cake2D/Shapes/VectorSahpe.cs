@@ -18,15 +18,28 @@ namespace ApeFree.Cake2D.Shapes
             Angle = angle;
         }
 
+        /// <summary>
+        /// 起始点
+        /// </summary>
         public PointF StartPoint { get; set; }
 
+        /// <summary>
+        /// 长度
+        /// </summary>
         public float Length { get; set; }
 
+        /// <summary>
+        /// 角度
+        /// </summary>
         public float Angle { get; set; }
 
+        /// <summary>
+        /// 结束点
+        /// </summary>
         public PointF EndPoint => Math2D.CalculatePointOnCircle(StartPoint, Length, Angle);
 
-        public IEnumerable<PointF> Points => new PointF[] { StartPoint, EndPoint };
+        /// <inheritdoc/>
+        public PointF[] Points => new PointF[] { StartPoint, EndPoint };
 
         /// <inheritdoc/>
         public bool Contains(PointF point)
