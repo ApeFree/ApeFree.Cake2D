@@ -8,7 +8,7 @@ namespace ApeFree.Cake2D.Shapes
     /// <summary>多边形基类</summary>
     public class PolygonShape : IPolygon
     {
-        public PolygonShape(IEnumerable<PointF> points)
+        public PolygonShape(PointF[] points)
         {
             Points = points;
         }
@@ -16,35 +16,30 @@ namespace ApeFree.Cake2D.Shapes
         /// <inheritdoc/>
         public virtual void Scale(float scaling)
         {
-            var _points = Points.ToArray();
             // 缩放多边形的各个顶点坐标
-            for (int i = 0; i < _points.Length; i++)
+            for (int i = 0; i < Points.Length; i++)
             {
-                _points[i] = new Point((int)(_points[i].X * scaling), (int)(_points[i].Y * scaling));
+                Points[i] = new Point((int)(Points[i].X * scaling), (int)(Points[i].Y * scaling));
             }
         }
 
         /// <inheritdoc/>
         public virtual void Offset(float distanceX, float distanceY)
         {
-            var _points = Points.ToArray();
             // 平移多边形的各个顶点坐标
-            for (int i = 0; i < _points.Length; i++)
+            for (int i = 0; i < Points.Length; i++)
             {
-                _points[i] = new PointF(_points[i].X + distanceX, _points[i].Y + distanceY);
+                Points[i] = Points[i].Add(distanceX, distanceY);
             }
         }
 
         /// <inheritdoc/>
         public virtual void Rotate(PointF centralPoint, float angle)
         {
-            var _points = Points.ToArray();
             // 将多边形的各个顶点坐标绕中心点旋转指定角度
-            for (int i = 0; i < _points.Length; i++)
+            for (int i = 0; i < Points.Length; i++)
             {
-                float x = ((float)((_points[i].X - centralPoint.X) * Math.Cos(angle) - (_points[i].Y - centralPoint.Y) * Math.Sin(angle) + centralPoint.X));
-                float y = ((float)((_points[i].X - centralPoint.X) * Math.Sin(angle) + (_points[i].Y - centralPoint.Y) * Math.Cos(angle) + centralPoint.Y));
-                _points[i] = new PointF(x, y);
+                Points[i] = Math2D.PointAround(centralPoint, Points[i], angle);
             }
         }
 
@@ -73,12 +68,11 @@ namespace ApeFree.Cake2D.Shapes
         /// <inheritdoc/>
         public virtual RectangleShape GetBounds()
         {
-            var _points = Points.ToArray();
             // 获取多边形的外接矩形
-            float left = _points.Min(p => p.X);
-            float top = _points.Min(p => p.Y);
-            float right = _points.Max(p => p.X);
-            float bottom = _points.Max(p => p.Y);
+            float left = Points.Min(p => p.X);
+            float top = Points.Min(p => p.Y);
+            float right = Points.Max(p => p.X);
+            float bottom = Points.Max(p => p.Y);
             return new RectangleShape(left, top, right - left, bottom - top);
         }
 
@@ -115,7 +109,7 @@ namespace ApeFree.Cake2D.Shapes
         {
             get
             {
-                var _points = Points.ToArray();
+                var _points = Points;
 
                 // 计算多边形的重心
                 double cx = 0;
