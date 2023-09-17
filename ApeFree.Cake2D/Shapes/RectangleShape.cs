@@ -9,7 +9,7 @@ namespace ApeFree.Cake2D.Shapes
         private float _height;
         private float _angle;
 
-        public RectangleShape(PointF location, float width, float height) : base(new[] { location, new PointF(location.X + width, location.Y), new PointF(location.X + width, location.Y + height), new PointF(location.X, location.Y + height) })
+        public RectangleShape(PointF location, float width, float height) : base(new[] { location, new PointF(location.X + width, location.Y), new PointF(location.X, location.Y + height), new PointF(location.X + width, location.Y + height) })
         {
             _width = width;
             _height = height;
@@ -63,7 +63,7 @@ namespace ApeFree.Cake2D.Shapes
 
         public float Left
         {
-            get { return base.GetBounds().Left; }
+            get { return Points[0].X; }
             set
             {
                 float delta = value - Left;
