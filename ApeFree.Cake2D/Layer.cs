@@ -5,7 +5,7 @@ namespace ApeFree.Cake2D
     /// <summary>
     /// 图层
     /// </summary>
-    public class Layer<TStyle>
+    public partial class Layer<TStyle>
     {
         /// <summary>
         /// 风格样式
@@ -64,7 +64,7 @@ namespace ApeFree.Cake2D
         }
     }
 
-    public class Layer<TStyle, TShape> : Layer<TStyle> where TShape : IShape
+    public partial class Layer<TStyle, TShape> : Layer<TStyle> where TShape : IShape
     {
         /// <summary>
         /// 图形
