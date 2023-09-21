@@ -22,8 +22,11 @@ namespace ApeFree.Cake2D.Shapes
             get { return _width; }
             set
             {
-                _width = value;
-                UpdatePoints();
+                if (_width != value)
+                {
+                    _width = value;
+                    UpdatePoints();
+                }
             }
         }
 
@@ -32,8 +35,11 @@ namespace ApeFree.Cake2D.Shapes
             get { return _height; }
             set
             {
-                _height = value;
-                UpdatePoints();
+                if (_height != value)
+                {
+                    _height = value;
+                    UpdatePoints();
+                }
             }
         }
 
@@ -42,23 +48,20 @@ namespace ApeFree.Cake2D.Shapes
             get { return _angle; }
             set
             {
-                _angle = value;
-                UpdatePoints();
+                if (_angle != value)
+                {
+                    _angle = value;
+                    UpdatePoints();
+                }
             }
         }
 
         private void UpdatePoints()
         {
             // 更新矩形的各个顶点坐标
-            PointF center = new PointF(Left + Width / 2, Top + Height / 2);
-            double sin = Math.Sin(Angle);
-            double cos = Math.Cos(Angle);
-            PointF[] points = new PointF[4];
-            points[0] = new PointF(center.X - (int)(0.5 * Width * cos + 0.5 * Height * sin), center.Y - (int)(0.5 * Height * cos - 0.5 * Width * sin));
-            points[1] = new PointF(center.X + (int)(0.5 * Width * cos - 0.5 * Height * sin), center.Y - (int)(0.5 * Height * cos + 0.5 * Width * sin));
-            points[2] = new PointF(center.X + (int)(0.5 * Width * cos + 0.5 * Height * sin), center.Y + (int)(0.5 * Height * cos - 0.5 * Width * sin));
-            points[3] = new PointF(center.X - (int)(0.5 * Width * cos - 0.5 * Height * sin), center.Y + (int)(0.5 * Height * cos + 0.5 * Width * sin));
-            base.Points = points;
+            Points[1] = Math2D.CalculatePointOnCircle(Points[0], Width, Angle);
+            Points[2] = Math2D.CalculatePointOnCircle(Points[0], Height, Angle - 90);
+            Points[3] = Math2D.CalculatePointOnCircle(Points[1], Height, Angle - 90);
         }
 
         public float Left
