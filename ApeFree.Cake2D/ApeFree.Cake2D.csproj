@@ -1,20 +1,20 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-	  <TargetFrameworks>net6.0-windows;net4</TargetFrameworks>
+	  <TargetFrameworks>net6.0-windows;net45</TargetFrameworks>
 
 	  <LangVersion>latest</LangVersion>
 	  <UseWindowsForms>true</UseWindowsForms>
 	  <Company>ApeFree</Company>
 	  <Authors>Guijie Lee</Authors>
-	  <Copyright>Copyright © 2022-2023 ApeFree, All Rights Reserved.</Copyright>
+	  <Copyright>Copyright © 2022-2024 ApeFree, All Rights Reserved.</Copyright>
 	  <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
 	  <Title>Cake2D</Title>
 	  <Product>ApeFree.Cake2D</Product>
 	  <Description>平面图像绘制框架</Description>
 	  <RepositoryUrl></RepositoryUrl>
 	  <PackageProjectUrl>https://blog.csdn.net/lgj123xj/category_11811822.html</PackageProjectUrl>
-	  <Version>0.0.5.1-beta0922</Version>
+	  <Version>0.0.5.2-beta0205</Version>
 	  <GenerateDocumentationFile>true</GenerateDocumentationFile>
 	  <PackageIcon>ApeFree_64px.png</PackageIcon>
   </PropertyGroup>
