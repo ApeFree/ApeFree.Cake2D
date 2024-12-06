@@ -28,14 +28,14 @@ namespace ApeFree.Cake2D
         public bool Selectable { get; set; } = true;
 
         /// <summary>
-        /// 画板
-        /// </summary>
-        public Palette<TStyle> Parent { get; }
-
-        /// <summary>
         /// 可聚焦
         /// </summary>
         public bool Focusable { get; set; }
+
+        /// <summary>
+        /// 画板
+        /// </summary>
+        public Palette<TStyle> Parent { get; }
 
         /// <summary>
         /// 附带数据

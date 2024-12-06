@@ -74,6 +74,7 @@ namespace ApeFree.Cake2D
 
         /// <summary>绘制多边形</summary>
         public Layer<TStyle, PolygonShape> DrawPolygon(TStyle style, PolygonShape graphic) => Draw(style, graphic);
+
         /// <summary>绘制线</summary>
         public Layer<TStyle, LineShape> DrawLine(TStyle style, LineShape graphic) => Draw(style, graphic);
 
@@ -88,9 +89,11 @@ namespace ApeFree.Cake2D
 
         /// <summary>绘制圆形</summary>
         public Layer<TStyle, CircleShape> DrawCircle(TStyle style, CircleShape graphic) => Draw(style, graphic);
+
         /// <summary>绘制文本</summary>
         public Layer<TStyle, TextShape> DrawText(TStyle style, TextShape graphic) => Draw(style, graphic);
 
+        /// <summary>绘制</summary>
         public Layer<TStyle, TShape> Draw<TShape>(TStyle style, TShape graphic) where TShape : IShape
         {
             var layer = new Layer<TStyle, TShape>(this, style, graphic);

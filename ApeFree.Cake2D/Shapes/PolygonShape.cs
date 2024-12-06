@@ -19,7 +19,7 @@ namespace ApeFree.Cake2D.Shapes
             // 缩放多边形的各个顶点坐标
             for (int i = 0; i < Points.Length; i++)
             {
-                Points[i] = new Point((int)(Points[i].X * scaling), (int)(Points[i].Y * scaling));
+                Points[i] = new PointF(Points[i].X * scaling, Points[i].Y * scaling);
             }
         }
 
