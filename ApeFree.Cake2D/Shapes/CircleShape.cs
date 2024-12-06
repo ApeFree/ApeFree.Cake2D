@@ -13,6 +13,7 @@ namespace ApeFree.Cake2D.Shapes
     {
         private float radius;
         private PointF centerPoint;
+        private double? radiusSquare;
 
         public CircleShape(PointF centerPoint, float radius)
         {
@@ -27,7 +28,19 @@ namespace ApeFree.Cake2D.Shapes
         public float Radius
         {
             get => radius;
-            set => radius = value;
+            set { radius = value; radiusSquare = null; }
+        }
+
+        /// <summary>
+        /// 半径的平方
+        /// </summary>
+        protected double RadiusSquare
+        {
+            get
+            {
+                radiusSquare ??= Math.Pow(radius, 2);
+                return radiusSquare.Value;
+            }
         }
 
         /// <inheritdoc/>
@@ -45,8 +58,20 @@ namespace ApeFree.Cake2D.Shapes
         /// <inheritdoc/>
         public bool Contains(PointF point)
         {
-            return (point.X - centerPoint.X) * (point.X - centerPoint.X) +
-                   (point.Y - centerPoint.Y) * (point.Y - centerPoint.Y) <= radius * radius;
+            var diffX = Math.Abs(point.X - CenterPoint.X);
+            if (diffX > Radius)
+            {
+                return false;
+            }
+
+            var diffY = Math.Abs(point.Y - CenterPoint.Y);
+            if (diffY > Radius)
+            {
+                return false;
+            }
+
+            var distanceSquare = Math.Pow(diffX, 2) + Math.Pow(diffY, 2);
+            return distanceSquare < RadiusSquare;
         }
 
         /// <inheritdoc/>
