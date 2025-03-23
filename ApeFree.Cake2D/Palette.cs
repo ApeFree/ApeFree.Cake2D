@@ -1,10 +1,7 @@
 ﻿using ApeFree.Cake2D.Shapes;
-using ApeFree.Cake2D.Shapes;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
-using System.Drawing.Drawing2D;
-using System.Linq;
 
 namespace ApeFree.Cake2D
 {
