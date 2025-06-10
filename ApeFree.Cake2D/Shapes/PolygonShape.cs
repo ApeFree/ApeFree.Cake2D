@@ -6,54 +6,24 @@ using System.Linq;
 namespace ApeFree.Cake2D.Shapes
 {
     /// <summary>多边形基类</summary>
-    public class PolygonShape : IPolygon
+    public class PolygonShape : PlaneShape
     {
-        public PolygonShape(PointF[] points)
-        {
-            Points = points;
-        }
+        public override ShapeType ShapeType => ShapeType.Polygon;
+
+        public PolygonShape(PointF[] points) : base(points) { }
 
         /// <inheritdoc/>
-        public virtual void Scale(float scaling)
-        {
-            // 缩放多边形的各个顶点坐标
-            for (int i = 0; i < Points.Length; i++)
-            {
-                Points[i] = new PointF(Points[i].X * scaling, Points[i].Y * scaling);
-            }
-        }
-
-        /// <inheritdoc/>
-        public virtual void Offset(float distanceX, float distanceY)
-        {
-            // 平移多边形的各个顶点坐标
-            for (int i = 0; i < Points.Length; i++)
-            {
-                Points[i] = Points[i].Add(distanceX, distanceY);
-            }
-        }
-
-        /// <inheritdoc/>
-        public virtual void Rotate(PointF centralPoint, float angle)
-        {
-            // 将多边形的各个顶点坐标绕中心点旋转指定角度
-            for (int i = 0; i < Points.Length; i++)
-            {
-                Points[i] = Math2D.PointAround(centralPoint, Points[i], angle);
-            }
-        }
-
-        /// <inheritdoc/>
-        public virtual bool Contains(PointF point)
+        public override bool Contains(PointF point)
         {
             var _points = Points.ToArray();
+
             // 判断指定点是否在多边形内部
             bool result = false;
             int j = _points.Length - 1;
             for (int i = 0; i < _points.Length; i++)
             {
-                if ((_points[i].Y < point.Y && _points[j].Y >= point.Y || _points[j].Y < point.Y && _points[i].Y >= point.Y)
-                    && (_points[i].X + (point.Y - _points[i].Y) / (_points[j].Y - _points[i].Y) * (_points[j].X - _points[i].X) < point.X))
+                if ((_points[i].Y < point.Y && _points[j].Y >= point.Y || _points[j].Y < point.Y && _points[i].Y >= point.Y) &&
+                    (_points[i].X + (point.Y - _points[i].Y) / (_points[j].Y - _points[i].Y) * (_points[j].X - _points[i].X) < point.X))
                 {
                     result = !result;
                 }
@@ -62,72 +32,68 @@ namespace ApeFree.Cake2D.Shapes
             return result;
         }
 
-        /// <inheritdoc/>
-        public PointF[] Points { get; set; }
-
-        /// <inheritdoc/>
-        public virtual RectangleShape GetBounds()
+        /// <summary>
+        /// 计算多边形周长
+        /// </summary>
+        /// <returns>多边形周长</returns>
+        /// <exception cref="InvalidOperationException">当多边形顶点数小于3时抛出</exception>
+        public override double CalculatePerimeter()
         {
-            // 获取多边形的外接矩形
-            float left = Points.Min(p => p.X);
-            float top = Points.Min(p => p.Y);
-            float right = Points.Max(p => p.X);
-            float bottom = Points.Max(p => p.Y);
-            return new RectangleShape(left, top, right - left, bottom - top);
-        }
+            PointF[] points = Points;
 
-        /// <inheritdoc/>
-        public virtual double CalculatePerimeter()
-        {
-            var _points = Points.ToArray();
-            // 计算多边形的周长
+            // 验证基础条件：至少3个顶点才能构成多边形
+            if (points.Length < 3)
+                throw new InvalidOperationException("多边形至少需要3个顶点");
+
             double perimeter = 0;
-            for (int i = 0; i < _points.Length; i++)
+
+            // 遍历所有相邻顶点对（包含首尾闭合）
+            for (int i = 0; i < points.Length; i++)
             {
-                int j = (i + 1) % _points.Length;
-                perimeter += Math.Sqrt(Math.Pow(_points[j].X - _points[i].X, 2) + Math.Pow(_points[j].Y - _points[i].Y, 2));
+                // 当前顶点
+                PointF current = points[i];
+                // 下一个顶点（当i是最后一个时取第一个顶点）
+                PointF next = points[(i + 1) % points.Length];
+
+                // 使用勾股定理计算两点间距离
+                double dx = next.X - current.X;
+                double dy = next.Y - current.Y;
+                perimeter += Math.Sqrt(dx * dx + dy * dy);
             }
+
             return perimeter;
         }
 
-        /// <inheritdoc/>
-        public virtual double CalculateArea()
+        /// <summary>
+        /// 使用鞋带定理计算多边形面积
+        /// </summary>
+        /// <returns>多边形面积（始终返回正值）</returns>
+        /// <exception cref="InvalidOperationException">当多边形顶点数小于3时抛出</exception>
+        public override double CalculateArea()
         {
-            var _points = Points.ToArray();
-            // 计算多边形的面积
+            PointF[] points = Points;
+
+            // 验证基础条件
+            if (points.Length < 3)
+                throw new InvalidOperationException("多边形至少需要3个顶点");
+
             double area = 0;
-            for (int i = 0; i < _points.Length; i++)
-            {
-                int j = (i + 1) % _points.Length;
-                area += _points[i].X * _points[j].Y - _points[j].X * _points[i].Y;
-            }
-            return Math.Abs(area / 2);
-        }
 
-        /// <inheritdoc/>
-        public virtual PointF Centroid
-        {
-            get
+            // 应用鞋带定理公式：
+            // area = ½ |Σ(x_i * y_{i+1} - x_{i+1} * y_i)|
+            for (int i = 0; i < points.Length; i++)
             {
-                var _points = Points;
+                // 当前顶点
+                PointF current = points[i];
+                // 下一个顶点（当i是最后一个时取第一个顶点）
+                PointF next = points[(i + 1) % points.Length];
 
-                // 计算多边形的重心
-                double cx = 0;
-                double cy = 0;
-                double area = 0;
-                for (int i = 0; i < _points.Length; i++)
-                {
-                    int j = (i + 1) % _points.Length;
-                    double temp = _points[i].X * _points[j].Y - _points[j].X * _points[i].Y;
-                    area += temp;
-                    cx += (double)(_points[i].X + _points[j].X) * temp;
-                    cy += (double)(_points[i].Y + _points[j].Y) * temp;
-                }
-                area /= 2;
-                cx /= 6 * area;
-                cy /= 6 * area;
-                return new Point((int)cx, (int)cy);
+                // 累加行列式计算项
+                area += (current.X * next.Y) - (next.X * current.Y);
             }
+
+            // 取绝对值并除以2得到最终面积
+            return Math.Abs(area) / 2.0;
         }
     }
 }

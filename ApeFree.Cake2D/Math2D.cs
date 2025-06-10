@@ -134,7 +134,7 @@ namespace ApeFree.Cake2D
                 }
             }
 
-            return new RectangleShape(new PointF(minx, miny), maxx - minx, maxy - miny);
+            return new RectangleShape(minx, miny, maxx - minx, maxy - miny);
         }
     }
 }

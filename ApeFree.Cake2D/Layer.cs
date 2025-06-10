@@ -15,7 +15,7 @@ namespace ApeFree.Cake2D
         /// <summary>
         /// 图形
         /// </summary>
-        public IShape Shape { get; set; }
+        public Shape Shape { get; set; }
 
         /// <summary>
         /// 可见性，画板绘制时是否绘制当前图层
@@ -57,14 +57,14 @@ namespace ApeFree.Cake2D
         /// <param name="parent">所属画板</param>
         /// <param name="style">样式风格</param>
         /// <param name="shape">图形</param>
-        internal Layer(Palette<TStyle> parent, TStyle style, IShape shape) : this(parent)
+        internal Layer(Palette<TStyle> parent, TStyle style, Shape shape) : this(parent)
         {
             Style = style;
             Shape = shape;
         }
     }
 
-    public partial class Layer<TStyle, TShape> : Layer<TStyle> where TShape : IShape
+    public partial class Layer<TStyle, TShape> : Layer<TStyle> where TShape : Shape
     {
         /// <summary>
         /// 图形
@@ -75,7 +75,7 @@ namespace ApeFree.Cake2D
         {
         }
 
-        internal Layer(Palette<TStyle> parent, TStyle style, IShape shape) : base(parent, style, shape)
+        internal Layer(Palette<TStyle> parent, TStyle style, Shape shape) : base(parent, style, shape)
         {
         }
     }

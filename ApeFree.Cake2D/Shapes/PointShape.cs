@@ -5,12 +5,14 @@ namespace ApeFree.Cake2D.Shapes
     /// <summary>
     /// 点图形
     /// </summary>
-    public class PointShape : IShape
+    public class PointShape : Shape
     {
+        public override ShapeType ShapeType => ShapeType.Point;
+
         /// <summary>
         /// 点的坐标
         /// </summary>
-        public PointF Location { get; set; }
+        public PointF Location { get => Points[0]; set => Points[0] = value; }
 
         /// <summary>
         /// 点图形的半径
@@ -20,55 +22,48 @@ namespace ApeFree.Cake2D.Shapes
         /// <summary>
         /// 点图像类型
         /// </summary>
-        public PointShapeType ShapeType { get; set; }
+        public PointType PointType { get; set; }
 
-        /// <inheritdoc/>
-        public PointF[] Points => new PointF[] { Location };
-
-
-        public PointShape(PointF location)
+        public PointShape(PointF location) : base([location])
         {
             Location = location;
         }
 
         /// <inheritdoc/>
-        public bool Contains(PointF point)
+        public override bool Contains(PointF point)
         {
             // 根据点图像的类型区分判断方法
-            switch (ShapeType)
+            switch (PointType)
             {
-                case PointShapeType.Circle:
+                case PointType.Circle:
                     {
                         return (point.X - Location.X) * (point.X - Location.X) +
                                 (point.Y - Location.Y) * (point.Y - Location.Y) <= Radius * Radius;
                     }
-                case PointShapeType.Square:
+                case PointType.Square:
                     {
                         return new RectangleF(Location, new SizeF(Radius, Radius)).Contains(point);
                     }
             }
             return false;
         }
+    }
 
-        /// <inheritdoc/>
-        public RectangleShape GetBounds()
-        {
-            return new RectangleShape(Location, Radius, Radius);
-        }
+    /// <summary>
+    /// 点图像类型
+    /// </summary>
+    public enum PointType
+    {
+        /// <summary>
+        /// 圆形
+        /// </summary>
+        Circle,
 
-        /// <inheritdoc/>
-        public void Offset(float distanceX, float distanceY)
-        {
-            Location = Location.Add(distanceX, distanceY);
-        }
-
-        /// <inheritdoc/>
-        public void Rotate(PointF centralPoint, float angle)
-        {
-            Location = Math2D.PointAround(centralPoint, Location, angle);
-        }
-
-        /// <inheritdoc/>
-        public void Scale(float scaling) { }
+        /// <summary>
+        /// 方形
+        /// </summary>
+        Square,
+        //Diamond,
+        //Triangle
     }
 }

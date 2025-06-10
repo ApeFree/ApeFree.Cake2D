@@ -21,7 +21,5 @@
         {
             return new PointF(point.X / dividend, point.Y / dividend);
         }
-
-
     }
 }
