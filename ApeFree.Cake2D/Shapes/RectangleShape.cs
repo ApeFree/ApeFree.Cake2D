@@ -1,4 +1,5 @@
 ﻿using System.Drawing;
+using System.Runtime.InteropServices;
 
 namespace ApeFree.Cake2D.Shapes
 {
@@ -15,12 +16,16 @@ namespace ApeFree.Cake2D.Shapes
 
         private static PointF[] GetPoints(PointF location, float width, float height)
         {
+            var x1 = location.X;
+            var y1 = location.Y;
+            var x2 = location.X + width;
+            var y2 = location.Y + height;
             return
             [
                 location,
-                new PointF(location.X + width, location.Y),
-                new PointF(location.X + width, location.Y + height),
-                new PointF(location.X, location.Y + height)
+                new PointF(x2, y1),
+                new PointF(x1, y2),
+                new PointF(x2, y2)
             ];
         }
 
@@ -34,8 +39,9 @@ namespace ApeFree.Cake2D.Shapes
             get => Points[1].X - Points[0].X;
             set
             {
-                Points[1].X = Points[0].X + value;
-                Points[3].X = Points[0].X + value;
+                var points = Points;
+                points[1].X = points[0].X + value;
+                points[3].X = points[1].X;
             }
         }
 
