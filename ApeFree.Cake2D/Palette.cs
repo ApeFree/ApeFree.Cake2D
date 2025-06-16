@@ -49,7 +49,7 @@ namespace ApeFree.Cake2D
         /// <summary>
         /// 背景色
         /// </summary>
-        public Color BackColor { get; set; } = Color.Transparent;
+        public Color BackColor { get; set; } = Color.White;
 
         /// <summary>
         /// 输出图像大小
