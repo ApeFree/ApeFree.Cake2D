@@ -13,7 +13,7 @@ namespace ApeFree.Cake2D.Shapes
         private readonly object lockerGetDisplayPoints = new object();
 
         /// <summary>是否需要重新计算显示坐标点</summary>
-        protected internal bool IsRecomputeDisplayPointsNeeded => Angle != angle || Enumerable.SequenceEqual(pointsCache, Points);
+        protected internal bool IsRecomputeDisplayPointsNeeded => Angle != angle || !Enumerable.SequenceEqual(pointsCache, Points);
 
         /// <summary>图形上所有点的真实坐标（旋转之前）</summary>
         public PointF[] Points { get; }
@@ -47,6 +47,8 @@ namespace ApeFree.Cake2D.Shapes
         protected Shape(PointF[] points)
         {
             Points = points;
+            pointsCache = points.ToArray();
+            // displayPoints = points.ToArray();
         }
 
         /// <summary>重新计算显示点的坐标</summary>
@@ -60,16 +62,20 @@ namespace ApeFree.Cake2D.Shapes
         /// <summary>当显示点重新计算的时候</summary>
         protected virtual void OnDisplayPointsRecomputing()
         {
-            var updatePoints = new PointF[Points.Length];
-
-            var centerPoint = GetRotationAxisPoint();
-
-            for (int i = 0; i < Points.Length; i++)
+            if (Angle != 0)
             {
-                updatePoints[i] = Math2D.PointAround(centerPoint, Points[i], Angle);
+                var centerPoint = GetRotationAxisPoint();
+                var updatePoints = new PointF[Points.Length];
+                for (int i = 0; i < Points.Length; i++)
+                {
+                    updatePoints[i] = Math2D.PointAround(centerPoint, Points[i], Angle);
+                }
+                displayPoints = updatePoints;
             }
-
-            displayPoints = updatePoints;
+            else
+            {
+                displayPoints = Points.ToArray();
+            }
         }
 
         /// <summary>平移</summary>
