@@ -1,0 +1,21 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net10.0-windows;net8.0-windows</TargetFrameworks>
+    <IsPackable>false</IsPackable>
+    <UseWindowsForms>true</UseWindowsForms>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageReference Include="MSTest.TestAdapter" Version="3.7.0" />
+    <PackageReference Include="MSTest.TestFramework" Version="3.7.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\ApeFree.Cake2D\ApeFree.Cake2D.csproj" />
+    <ProjectReference Include="..\..\ApeFree.Cake2D.Gdi\ApeFree.Cake2D.Gdi.csproj" />
+    <ProjectReference Include="..\..\ApeFree.Cake2D.Skia\ApeFree.Cake2D.Skia.csproj" />
+  </ItemGroup>
+
+</Project>

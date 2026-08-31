@@ -1,26 +1,28 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net10.0;net8.0;netstandard2.0;net461;net452</TargetFrameworks>
+    <TargetFrameworks>net10.0-windows;net8.0-windows;net461;net452</TargetFrameworks>
     <LangVersion>latest</LangVersion>
+    <UseWindowsForms>true</UseWindowsForms>
     <Company>ApeFree</Company>
     <Authors>Guijie Lee</Authors>
     <Copyright>Copyright © 2022-2026 ApeFree, All Rights Reserved.</Copyright>
     <GeneratePackageOnBuild Condition="'$(Configuration)' == 'Release'">true</GeneratePackageOnBuild>
-    <Title>Cake2D</Title>
-    <Product>ApeFree.Cake2D</Product>
-    <Description>通用 2D 平面绘图与场景图引擎核心库</Description>
+    <Title>Cake2D.Gdi</Title>
+    <Product>ApeFree.Cake2D.Gdi</Product>
+    <Description>基于 GDI+ 的 Cake2D 渲染适配器与 WinForms 视口控件库</Description>
     <Version>0.1.0-beta</Version>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <PackageIcon>ApeFree_64px.png</PackageIcon>
   </PropertyGroup>
 
   <ItemGroup Condition="'$(TargetFramework)' == 'net452' Or '$(TargetFramework)' == 'net461'">
+    <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Drawing" />
   </ItemGroup>
 
-  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
-    <PackageReference Include="System.Drawing.Primitives" Version="4.3.0" />
+  <ItemGroup>
+    <ProjectReference Include="..\ApeFree.Cake2D\ApeFree.Cake2D.csproj" />
   </ItemGroup>
 
   <ItemGroup>

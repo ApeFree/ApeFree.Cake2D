@@ -1,0 +1,19 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFrameworks>net10.0-windows;net8.0-windows;net461;net452</TargetFrameworks>
+    <Nullable>disable</Nullable>
+    <UseWindowsForms>true</UseWindowsForms>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\ApeFree.Cake2D\ApeFree.Cake2D.csproj" />
+    <ProjectReference Include="..\..\ApeFree.Cake2D.Gdi\ApeFree.Cake2D.Gdi.csproj" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'net10.0-windows' Or '$(TargetFramework)' == 'net8.0-windows'">
+    <ProjectReference Include="..\..\ApeFree.Cake2D.Skia\ApeFree.Cake2D.Skia.csproj" />
+  </ItemGroup>
+
+</Project>
