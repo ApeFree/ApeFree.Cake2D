@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net10.0-windows;net8.0-windows;net461;net452</TargetFrameworks>
+    <TargetFrameworks>net10.0-windows;net8.0-windows;net6.0-windows;net472;net461;net452</TargetFrameworks>
     <LangVersion>latest</LangVersion>
     <UseWindowsForms>true</UseWindowsForms>
     <Company>ApeFree</Company>
@@ -10,13 +10,16 @@
     <GeneratePackageOnBuild Condition="'$(Configuration)' == 'Release'">true</GeneratePackageOnBuild>
     <Title>Cake2D.Gdi</Title>
     <Product>ApeFree.Cake2D.Gdi</Product>
-    <Description>基于 GDI+ 的 Cake2D 渲染适配器与 WinForms 视口控件库</Description>
+    <Description>基于 GDI+ 的 Cake2D 渲染接口与控件库</Description>
     <Version>0.1.0-beta</Version>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <PackageIcon>ApeFree_64px.png</PackageIcon>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+    <PackageRequireLicenseAcceptance>True</PackageRequireLicenseAcceptance>
   </PropertyGroup>
 
-  <ItemGroup Condition="'$(TargetFramework)' == 'net452' Or '$(TargetFramework)' == 'net461'">
+  <ItemGroup Condition="'$(TargetFramework)' == 'net452' Or '$(TargetFramework)' == 'net461' Or '$(TargetFramework)' == 'net472'">
     <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Drawing" />
   </ItemGroup>
@@ -26,6 +29,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Include="README.md">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
     <None Include="..\ApeFree_64px.png">
       <Pack>True</Pack>
       <PackagePath>\</PackagePath>

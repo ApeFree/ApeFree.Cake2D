@@ -10,10 +10,13 @@
     <GeneratePackageOnBuild Condition="'$(Configuration)' == 'Release'">true</GeneratePackageOnBuild>
     <Title>Cake2D.Skia</Title>
     <Product>ApeFree.Cake2D.Skia</Product>
-    <Description>基于 SkiaSharp 的 Cake2D 渲染适配器与视口控件库</Description>
+    <Description>基于 SkiaSharp 的 Cake2D 渲染接口与控件库</Description>
     <Version>0.1.0-beta</Version>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <PackageIcon>ApeFree_64px.png</PackageIcon>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+    <PackageRequireLicenseAcceptance>True</PackageRequireLicenseAcceptance>
   </PropertyGroup>
 
   <ItemGroup>
@@ -26,6 +29,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Include="README.md">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
     <None Include="..\ApeFree_64px.png">
       <Pack>True</Pack>
       <PackagePath>\</PackagePath>
