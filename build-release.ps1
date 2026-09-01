@@ -27,7 +27,9 @@ $repoRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 
 # 待打包的项目列表
 $projects = @(
-    (Join-Path $repoRoot 'ApeFree.Cake2D\ApeFree.Cake2D.csproj')
+    (Join-Path $repoRoot 'ApeFree.Cake2D\ApeFree.Cake2D.csproj'),
+    (Join-Path $repoRoot 'ApeFree.Cake2D.Gdi\ApeFree.Cake2D.Gdi.csproj'),
+    (Join-Path $repoRoot 'ApeFree.Cake2D.Skia\ApeFree.Cake2D.Skia.csproj')
 )
 
 # 如果未指定输出目录，默认输出到仓库根目录下的 Install 文件夹
@@ -65,8 +67,7 @@ Write-Host "==> 开始编译 ApeFree.Cake2D Release 版本 NuGet 包 ..." -Foreg
 Write-Host "    输出目录: $outDir" -ForegroundColor Gray
 
 foreach ($proj in $projects) {
-    Write-Host "
---> 打包项目: $proj" -ForegroundColor Cyan
+    Write-Host "`n--> 打包项目: $proj" -ForegroundColor Cyan
     # 编译并打包（传递 -p:GeneratePackageOnBuild=false 避免多目标框架下引发 NU5026 时序冲突）
     & $dotnet.Path pack $proj -c Release -o $outDir --nologo -p:GeneratePackageOnBuild=false
     if ($LASTEXITCODE -ne 0) {
@@ -80,12 +81,10 @@ if ($packages.Count -eq 0) {
     throw '打包完成但未找到生成的 .nupkg 文件'
 }
 
-Write-Host "
-==> 打包成功，共生成 $($packages.Count) 个 NuGet 包：" -ForegroundColor Green
+Write-Host "`n==> 打包成功，共生成 $($packages.Count) 个 NuGet 包：" -ForegroundColor Green
 $packages | ForEach-Object {
     $sizeKB = [Math]::Round($_.Length / 1KB, 1)
     Write-Host ("    {0}  ({1} KB)" -f $_.Name, $sizeKB) -ForegroundColor Green
 }
 
-Write-Host "
-Install 文件夹已加入 .gitignore，不会上传到 Git。" -ForegroundColor DarkGray
+Write-Host "`nInstall 文件夹已加入 .gitignore，不会上传到 Git。" -ForegroundColor DarkGray
