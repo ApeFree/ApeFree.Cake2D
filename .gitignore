@@ -401,3 +401,7 @@ FodyWeavers.xsd
 # NuGet package release folder
 [Ii]nstall/
 *.nupkg
+
+
+# Local release build script
+build-release.ps1
