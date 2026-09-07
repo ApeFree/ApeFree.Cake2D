@@ -11,7 +11,7 @@
     <Title>Cake2D.Gdi</Title>
     <Product>ApeFree.Cake2D.Gdi</Product>
     <Description>基于 GDI+ 的 Cake2D 渲染接口与控件库</Description>
-    <Version>1.0.2.0-beta260905</Version>
+    <Version>1.0.2.1-alpha260907</Version>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <PackageIcon>ApeFree_64px.png</PackageIcon>
     <PackageReadmeFile>README.md</PackageReadmeFile>
