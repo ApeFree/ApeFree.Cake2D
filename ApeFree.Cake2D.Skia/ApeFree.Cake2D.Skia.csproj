@@ -1,7 +1,7 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net10.0-windows;net8.0-windows;net462</TargetFrameworks>
+    <TargetFrameworks>net8.0-windows;net462</TargetFrameworks>
     <LangVersion>latest</LangVersion>
     <UseWindowsForms>true</UseWindowsForms>
     <Company>ApeFree</Company>
@@ -11,7 +11,7 @@
     <Title>Cake2D.Skia</Title>
     <Product>ApeFree.Cake2D.Skia</Product>
     <Description>基于 SkiaSharp 的 Cake2D 渲染接口与控件库</Description>
-    <Version>1.0.0.0-beta260901</Version>
+    <Version>1.0.2.0-beta260905</Version>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <PackageIcon>ApeFree_64px.png</PackageIcon>
     <PackageReadmeFile>README.md</PackageReadmeFile>

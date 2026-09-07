@@ -1,4 +1,4 @@
-﻿---
+---
 name: cake2d
 description: ApeFree.Cake2D 二维图层化矢量绘图与交互框架使用指南。涵盖基于 GDI+ 的 WinForms 控件（Cake2DControl）、场景图与视口坐标系转换、全套图元（Rectangle、Circle、Polygon、Line、Text 等）、交互事件与动态重绘开发规范及完整 API 字典。
 ---
@@ -61,8 +61,8 @@ Cake2D 内部严格区分两个坐标系：
 在 `.csproj` 中添加核心包与 GDI+ 适配器包：
 ```xml
 <ItemGroup>
-  <PackageReference Include="ApeFree.Cake2D" Version="1.0.0.0-beta260901" />
-  <PackageReference Include="ApeFree.Cake2D.Gdi" Version="1.0.0.0-beta260901" />
+  <PackageReference Include="ApeFree.Cake2D" Version="1.0.2.0-beta260905" />
+  <PackageReference Include="ApeFree.Cake2D.Gdi" Version="1.0.2.0-beta260905" />
 </ItemGroup>
 ```
 
