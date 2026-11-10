@@ -1,9 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net8.0-windows;net6.0-windows;net462</TargetFrameworks>
+    <TargetFrameworks>netstandard2.0;netstandard2.1;net6.0;net8.0;net10.0;net462;net472;net6.0-windows;net8.0-windows;net10.0-windows</TargetFrameworks>
     <LangVersion>latest</LangVersion>
-    <UseWindowsForms>true</UseWindowsForms>
     <Company>ApeFree</Company>
     <Authors>Guijie Lee</Authors>
     <Copyright>Copyright © 2022-2026 ApeFree, All Rights Reserved.</Copyright>
@@ -19,8 +18,24 @@
     <PackageRequireLicenseAcceptance>True</PackageRequireLicenseAcceptance>
   </PropertyGroup>
 
+  <!-- Windows 平台专有配置（启用 Windows Forms 支持） -->
+  <PropertyGroup Condition="$(TargetFramework.EndsWith('-windows')) or '$(TargetFramework)' == 'net462' or '$(TargetFramework)' == 'net472'">
+    <UseWindowsForms>true</UseWindowsForms>
+    <DefineConstants>$(DefineConstants);CAKE2D_WINFORMS</DefineConstants>
+  </PropertyGroup>
+
+  <!-- 非 Windows 桌面目标框架下排除 WinForms 控件源码 -->
+  <ItemGroup Condition="!($(TargetFramework.EndsWith('-windows')) or '$(TargetFramework)' == 'net462' or '$(TargetFramework)' == 'net472')">
+    <Compile Remove="Controls\**" />
+  </ItemGroup>
+
+  <!-- 纯 SkiaSharp 核心包：全平台无差别引用 -->
   <ItemGroup>
     <PackageReference Include="SkiaSharp" Version="2.88.9" />
+  </ItemGroup>
+
+  <!-- WinForms 控件包：仅在编译 Windows 版本时引用 -->
+  <ItemGroup Condition="$(TargetFramework.EndsWith('-windows')) or '$(TargetFramework)' == 'net462' or '$(TargetFramework)' == 'net472'">
     <PackageReference Include="SkiaSharp.Views.WindowsForms" Version="2.88.9" />
   </ItemGroup>
 

@@ -1,17 +1,21 @@
 using System;
 using System.Collections.Generic;
 using System.Drawing;
-using System.Drawing.Imaging;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using ApeFree.Cake2D.Math;
 using ApeFree.Cake2D.Rendering;
 using SkiaSharp;
 
+#if CAKE2D_WINFORMS
+using System.Drawing.Imaging;
+#endif
+
 namespace ApeFree.Cake2D.Skia
 {
     /// <summary>
     /// 基于 SkiaSharp 的 2D 渲染适配器，实现 <see cref="IRenderCanvas"/> 接口。
+    /// 原生全平台支持，严格管理 Skia C++ 非托管资源生命周期，杜绝孤儿句柄泄漏。
     /// </summary>
     public class SkiaRenderCanvas : IRenderCanvas
     {
@@ -19,8 +23,10 @@ namespace ApeFree.Cake2D.Skia
         private readonly Stack<float> _scaleStack = new Stack<float>();
         private float _currentScale = 1.0f;
 
-        // 弱引用缓存表：避免每帧重复将 GDI Image 转换为 SKImage，同时杜绝内存泄漏
+#if CAKE2D_WINFORMS
+        // 弱引用缓存表：仅在 Windows 环境下向下兼容 GDI+ Image 到 SKImage 的无损转换
         private static readonly ConditionalWeakTable<Image, SKImage> _gdiImageCache = new ConditionalWeakTable<Image, SKImage>();
+#endif
 
         public SKCanvas Canvas => _canvas;
 
@@ -68,7 +74,14 @@ namespace ApeFree.Cake2D.Skia
         {
             using (SKPaint paint = CreateStrokePaint(color, width, dashed))
             {
-                _canvas.DrawLine(p1.X, p1.Y, p2.X, p2.Y, paint);
+                try
+                {
+                    _canvas.DrawLine(p1.X, p1.Y, p2.X, p2.Y, paint);
+                }
+                finally
+                {
+                    paint.PathEffect?.Dispose();
+                }
             }
         }
 
@@ -78,7 +91,14 @@ namespace ApeFree.Cake2D.Skia
             using (SKPath path = CreatePath(points, false))
             using (SKPaint paint = CreateStrokePaint(color, width))
             {
-                _canvas.DrawPath(path, paint);
+                try
+                {
+                    _canvas.DrawPath(path, paint);
+                }
+                finally
+                {
+                    paint.PathEffect?.Dispose();
+                }
             }
         }
 
@@ -88,7 +108,14 @@ namespace ApeFree.Cake2D.Skia
             using (SKPath path = CreatePath(points, true))
             using (SKPaint paint = CreateStrokePaint(strokeColor, width))
             {
-                _canvas.DrawPath(path, paint);
+                try
+                {
+                    _canvas.DrawPath(path, paint);
+                }
+                finally
+                {
+                    paint.PathEffect?.Dispose();
+                }
             }
         }
 
@@ -113,7 +140,14 @@ namespace ApeFree.Cake2D.Skia
                 }
                 using (SKPaint strokePaint = CreateStrokePaint(strokeColor, strokeWidth))
                 {
-                    _canvas.DrawPath(path, strokePaint);
+                    try
+                    {
+                        _canvas.DrawPath(path, strokePaint);
+                    }
+                    finally
+                    {
+                        strokePaint.PathEffect?.Dispose();
+                    }
                 }
             }
         }
@@ -122,7 +156,14 @@ namespace ApeFree.Cake2D.Skia
         {
             using (SKPaint paint = CreateStrokePaint(color, width))
             {
-                _canvas.DrawRect(ToSKRect(rect), paint);
+                try
+                {
+                    _canvas.DrawRect(ToSKRect(rect), paint);
+                }
+                finally
+                {
+                    paint.PathEffect?.Dispose();
+                }
             }
         }
 
@@ -143,7 +184,14 @@ namespace ApeFree.Cake2D.Skia
             }
             using (SKPaint strokePaint = CreateStrokePaint(strokeColor, strokeWidth))
             {
-                _canvas.DrawRect(skRect, strokePaint);
+                try
+                {
+                    _canvas.DrawRect(skRect, strokePaint);
+                }
+                finally
+                {
+                    strokePaint.PathEffect?.Dispose();
+                }
             }
         }
 
@@ -151,7 +199,14 @@ namespace ApeFree.Cake2D.Skia
         {
             using (SKPaint paint = CreateStrokePaint(color, width))
             {
-                _canvas.DrawCircle(center.X, center.Y, radius, paint);
+                try
+                {
+                    _canvas.DrawCircle(center.X, center.Y, radius, paint);
+                }
+                finally
+                {
+                    paint.PathEffect?.Dispose();
+                }
             }
         }
 
@@ -167,7 +222,14 @@ namespace ApeFree.Cake2D.Skia
         {
             using (SKPaint paint = CreateStrokePaint(color, width))
             {
-                _canvas.DrawOval(center.X, center.Y, radiusX, radiusY, paint);
+                try
+                {
+                    _canvas.DrawOval(center.X, center.Y, radiusX, radiusY, paint);
+                }
+                finally
+                {
+                    paint.PathEffect?.Dispose();
+                }
             }
         }
 
@@ -254,6 +316,7 @@ namespace ApeFree.Cake2D.Skia
             {
                 _canvas.DrawBitmap(skBitmap, skDest);
             }
+#if CAKE2D_WINFORMS
             else if (image is Image gdiImage)
             {
                 if (!_gdiImageCache.TryGetValue(gdiImage, out SKImage cachedImage))
@@ -270,8 +333,10 @@ namespace ApeFree.Cake2D.Skia
                     _canvas.DrawImage(cachedImage, skDest);
                 }
             }
+#endif
         }
 
+#if CAKE2D_WINFORMS
         private static SKImage ConvertGdiImageToSKImage(Image gdiImage)
         {
             if (gdiImage is Bitmap bmp)
@@ -314,6 +379,7 @@ namespace ApeFree.Cake2D.Skia
                 }
             }
         }
+#endif
 
         private SKPaint CreateStrokePaint(Color color, float width, bool dashed = false)
         {
@@ -332,6 +398,7 @@ namespace ApeFree.Cake2D.Skia
 
             if (dashed)
             {
+                // 创建 DashEffect，并在外部使用完毕后销毁
                 paint.PathEffect = SKPathEffect.CreateDash(new float[] { 6f / _currentScale, 6f / _currentScale }, 0f);
             }
 
