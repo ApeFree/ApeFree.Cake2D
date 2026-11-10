@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Drawing;
 
 namespace ApeFree.Cake2D.Math
@@ -44,8 +44,12 @@ namespace ApeFree.Cake2D.Math
         public static Vector2D operator *(float scalar, Vector2D v) => new Vector2D(v.X * scalar, v.Y * scalar);
         public static Vector2D operator /(Vector2D v, float scalar) => new Vector2D(v.X / scalar, v.Y / scalar);
 
-        public static bool operator ==(Vector2D a, Vector2D b) => System.Math.Abs(a.X - b.X) < 1e-6f && System.Math.Abs(a.Y - b.Y) < 1e-6f;
+        public static bool operator ==(Vector2D a, Vector2D b) => a.X == b.X && a.Y == b.Y;
         public static bool operator !=(Vector2D a, Vector2D b) => !(a == b);
+
+        /// <summary>在指定浮点容差范围内判断两个向量是否近似相等</summary>
+        public bool NearlyEquals(Vector2D other, float tolerance = 1e-5f) =>
+            System.Math.Abs(X - other.X) <= tolerance && System.Math.Abs(Y - other.Y) <= tolerance;
 
         public static float Dot(Vector2D a, Vector2D b) => a.X * b.X + a.Y * b.Y;
         public static float Cross(Vector2D a, Vector2D b) => a.X * b.Y - a.Y * b.X;

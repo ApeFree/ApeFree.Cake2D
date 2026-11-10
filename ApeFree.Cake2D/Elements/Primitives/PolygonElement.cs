@@ -20,9 +20,9 @@ namespace ApeFree.Cake2D.Elements.Primitives
             if (points != null) Points.AddRange(points);
         }
 
-        public float Area => Math2D.CalculatePolygonArea(Points.ToArray());
-        public float Perimeter => Math2D.CalculatePolygonPerimeter(Points.ToArray());
-        public PointF Centroid => Math2D.CalculatePolygonCentroid(Points.ToArray());
+        public float Area => Math2D.CalculatePolygonArea(Points);
+        public float Perimeter => Math2D.CalculatePolygonPerimeter(Points);
+        public PointF Centroid => Math2D.CalculatePolygonCentroid(Points);
 
         public override RectangleF GetLocalBounds() => Math2D.GetBounds(Points);
 
@@ -30,7 +30,7 @@ namespace ApeFree.Cake2D.Elements.Primitives
         {
             if (Points.Count < 3) return false;
             PointF localPt = WorldToLocal(worldPoint);
-            return Math2D.IsPointInPolygon(Points.ToArray(), localPt);
+            return Math2D.IsPointInPolygon(Points, localPt);
         }
 
         protected override void OnRender(IRenderCanvas canvas, RenderContext2D context)

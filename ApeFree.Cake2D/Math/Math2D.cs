@@ -57,13 +57,13 @@ namespace ApeFree.Cake2D.Math
             );
         }
 
-        /// <summary>判断点是否在多边形内部（射线法）</summary>
-        public static bool IsPointInPolygon(PointF[] polygon, PointF point)
+        /// <summary>判断点是否在多边形内部（射线法，零堆分配）</summary>
+        public static bool IsPointInPolygon(IReadOnlyList<PointF> polygon, PointF point)
         {
-            if (polygon == null || polygon.Length < 3) return false;
+            if (polygon == null || polygon.Count < 3) return false;
 
             bool inside = false;
-            int n = polygon.Length;
+            int n = polygon.Count;
             for (int i = 0, j = n - 1; i < n; j = i++)
             {
                 if (((polygon[i].Y > point.Y) != (polygon[j].Y > point.Y)) &&
@@ -75,12 +75,15 @@ namespace ApeFree.Cake2D.Math
             return inside;
         }
 
-        /// <summary>计算多边形面积</summary>
-        public static float CalculatePolygonArea(PointF[] polygon)
+        /// <summary>判断点是否在多边形内部（射线法）</summary>
+        public static bool IsPointInPolygon(PointF[] polygon, PointF point) => IsPointInPolygon((IReadOnlyList<PointF>)polygon, point);
+
+        /// <summary>计算多边形面积（零堆分配）</summary>
+        public static float CalculatePolygonArea(IReadOnlyList<PointF> polygon)
         {
-            if (polygon == null || polygon.Length < 3) return 0f;
+            if (polygon == null || polygon.Count < 3) return 0f;
             float area = 0f;
-            int n = polygon.Length;
+            int n = polygon.Count;
             for (int i = 0; i < n; i++)
             {
                 int j = (i + 1) % n;
@@ -89,12 +92,15 @@ namespace ApeFree.Cake2D.Math
             return System.Math.Abs(area) * 0.5f;
         }
 
-        /// <summary>计算多边形周长</summary>
-        public static float CalculatePolygonPerimeter(PointF[] polygon)
+        /// <summary>计算多边形面积</summary>
+        public static float CalculatePolygonArea(PointF[] polygon) => CalculatePolygonArea((IReadOnlyList<PointF>)polygon);
+
+        /// <summary>计算多边形周长（零堆分配）</summary>
+        public static float CalculatePolygonPerimeter(IReadOnlyList<PointF> polygon)
         {
-            if (polygon == null || polygon.Length < 2) return 0f;
+            if (polygon == null || polygon.Count < 2) return 0f;
             float perimeter = 0f;
-            int n = polygon.Length;
+            int n = polygon.Count;
             for (int i = 0; i < n; i++)
             {
                 int j = (i + 1) % n;
@@ -103,18 +109,21 @@ namespace ApeFree.Cake2D.Math
             return perimeter;
         }
 
-        /// <summary>计算多边形重心</summary>
-        public static PointF CalculatePolygonCentroid(PointF[] polygon)
+        /// <summary>计算多边形周长</summary>
+        public static float CalculatePolygonPerimeter(PointF[] polygon) => CalculatePolygonPerimeter((IReadOnlyList<PointF>)polygon);
+
+        /// <summary>计算多边形重心（零堆分配）</summary>
+        public static PointF CalculatePolygonCentroid(IReadOnlyList<PointF> polygon)
         {
-            if (polygon == null || polygon.Length == 0) return PointF.Empty;
-            if (polygon.Length == 1) return polygon[0];
-            if (polygon.Length == 2) return new PointF((polygon[0].X + polygon[1].X) * 0.5f, (polygon[0].Y + polygon[1].Y) * 0.5f);
+            if (polygon == null || polygon.Count == 0) return PointF.Empty;
+            if (polygon.Count == 1) return polygon[0];
+            if (polygon.Count == 2) return new PointF((polygon[0].X + polygon[1].X) * 0.5f, (polygon[0].Y + polygon[1].Y) * 0.5f);
 
             float cx = 0f;
             float cy = 0f;
             float signedArea = 0f;
 
-            int n = polygon.Length;
+            int n = polygon.Count;
             for (int i = 0; i < n; i++)
             {
                 int j = (i + 1) % n;
@@ -127,12 +136,20 @@ namespace ApeFree.Cake2D.Math
             signedArea *= 0.5f;
             if (System.Math.Abs(signedArea) < 1e-6f)
             {
-                // 退化情况：直接取算术平均
-                return new PointF(polygon.Average(p => p.X), polygon.Average(p => p.Y));
+                float sumX = 0f, sumY = 0f;
+                for (int i = 0; i < n; i++)
+                {
+                    sumX += polygon[i].X;
+                    sumY += polygon[i].Y;
+                }
+                return new PointF(sumX / n, sumY / n);
             }
 
             return new PointF(cx / (6f * signedArea), cy / (6f * signedArea));
         }
+
+        /// <summary>计算多边形重心</summary>
+        public static PointF CalculatePolygonCentroid(PointF[] polygon) => CalculatePolygonCentroid((IReadOnlyList<PointF>)polygon);
 
         /// <summary>计算一组点集的正外接矩形 (AABB)</summary>
         public static RectangleF GetBounds(IEnumerable<PointF> points)
@@ -156,7 +173,7 @@ namespace ApeFree.Cake2D.Math
             return new RectangleF(minX, minY, maxX - minX, maxY - minY);
         }
 
-        /// <summary>获取矩形经过矩阵变换后的正外接矩形 (AABB)</summary>
+        /// <summary>获取矩形经过矩阵变换后的正外接矩形 (AABB，零堆分配)</summary>
         public static RectangleF GetTransformedBounds(RectangleF rect, Matrix3x2 matrix)
         {
             if (rect.IsEmpty || matrix.IsIdentity) return rect;
