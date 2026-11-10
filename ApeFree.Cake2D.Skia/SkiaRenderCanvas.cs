@@ -1,8 +1,10 @@
-﻿using System;
+using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
-using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
+using ApeFree.Cake2D.Math;
 using ApeFree.Cake2D.Rendering;
 using SkiaSharp;
 
@@ -14,6 +16,11 @@ namespace ApeFree.Cake2D.Skia
     public class SkiaRenderCanvas : IRenderCanvas
     {
         private readonly SKCanvas _canvas;
+        private readonly Stack<float> _scaleStack = new Stack<float>();
+        private float _currentScale = 1.0f;
+
+        // 弱引用缓存表：避免每帧重复将 GDI Image 转换为 SKImage，同时杜绝内存泄漏
+        private static readonly ConditionalWeakTable<Image, SKImage> _gdiImageCache = new ConditionalWeakTable<Image, SKImage>();
 
         public SKCanvas Canvas => _canvas;
 
@@ -25,6 +32,36 @@ namespace ApeFree.Cake2D.Skia
         public void Clear(Color backgroundColor)
         {
             _canvas.Clear(ToSKColor(backgroundColor));
+        }
+
+        public void PushTransform(Matrix3x2 matrix)
+        {
+            _canvas.Save();
+            _scaleStack.Push(_currentScale);
+
+            float det = System.Math.Abs(matrix.M11 * matrix.M22 - matrix.M12 * matrix.M21);
+            float scale = (float)System.Math.Sqrt(det > 1e-6f ? det : 1f);
+            _currentScale *= scale;
+
+            SKMatrix skMatrix = new SKMatrix
+            {
+                ScaleX = matrix.M11,
+                SkewX = matrix.M21,
+                TransX = matrix.M31,
+                SkewY = matrix.M12,
+                ScaleY = matrix.M22,
+                TransY = matrix.M32,
+                Persp0 = 0,
+                Persp1 = 0,
+                Persp2 = 1
+            };
+            _canvas.Concat(ref skMatrix);
+        }
+
+        public void PopTransform()
+        {
+            _canvas.Restore();
+            _currentScale = _scaleStack.Count > 0 ? _scaleStack.Pop() : 1.0f;
         }
 
         public void DrawLine(PointF p1, PointF p2, Color color, float width, bool dashed = false)
@@ -147,11 +184,11 @@ namespace ApeFree.Cake2D.Skia
             if (string.IsNullOrEmpty(text)) return;
 
             SKFontStyleWeight weight = isBold ? SKFontStyleWeight.Bold : SKFontStyleWeight.Normal;
-            using (SKTypeface tf = SKTypeface.FromFamilyName(string.IsNullOrEmpty(fontName) ? "Arial" : fontName, weight, SKFontStyleWidth.Normal, SKFontStyleSlant.Upright) ?? SKTypeface.Default)
+            using (SKTypeface typeface = SKTypeface.FromFamilyName(fontName, weight, SKFontStyleWidth.Normal, SKFontStyleSlant.Upright))
             using (SKPaint paint = new SKPaint
             {
-                Typeface = tf,
-                TextSize = fontSize > 0 ? fontSize * 1.333f : 13.33f,
+                Typeface = typeface ?? SKTypeface.Default,
+                TextSize = fontSize > 0 ? fontSize : 10f,
                 Color = ToSKColor(color),
                 IsAntialias = true
             })
@@ -162,42 +199,39 @@ namespace ApeFree.Cake2D.Skia
                 float drawX = position.X;
                 float drawY = position.Y;
 
-                // 水平对齐调整
                 switch (alignment)
                 {
                     case TextAlignment.TopLeft:
-                    case TextAlignment.MiddleLeft:
-                    case TextAlignment.BottomLeft:
-                        drawX = position.X - textBounds.Left;
+                        drawY = position.Y - textBounds.Top;
                         break;
                     case TextAlignment.TopCenter:
-                    case TextAlignment.MiddleCenter:
-                    case TextAlignment.BottomCenter:
                         drawX = position.X - textBounds.MidX;
+                        drawY = position.Y - textBounds.Top;
                         break;
                     case TextAlignment.TopRight:
-                    case TextAlignment.MiddleRight:
-                    case TextAlignment.BottomRight:
                         drawX = position.X - textBounds.Right;
-                        break;
-                }
-
-                // 垂直对齐调整（Skia 文本基线校准）
-                switch (alignment)
-                {
-                    case TextAlignment.TopLeft:
-                    case TextAlignment.TopCenter:
-                    case TextAlignment.TopRight:
                         drawY = position.Y - textBounds.Top;
                         break;
                     case TextAlignment.MiddleLeft:
+                        drawY = position.Y - textBounds.MidY;
+                        break;
                     case TextAlignment.MiddleCenter:
+                        drawX = position.X - textBounds.MidX;
+                        drawY = position.Y - textBounds.MidY;
+                        break;
                     case TextAlignment.MiddleRight:
+                        drawX = position.X - textBounds.Right;
                         drawY = position.Y - textBounds.MidY;
                         break;
                     case TextAlignment.BottomLeft:
+                        drawY = position.Y - textBounds.Bottom;
+                        break;
                     case TextAlignment.BottomCenter:
+                        drawX = position.X - textBounds.MidX;
+                        drawY = position.Y - textBounds.Bottom;
+                        break;
                     case TextAlignment.BottomRight:
+                        drawX = position.X - textBounds.Right;
                         drawY = position.Y - textBounds.Bottom;
                         break;
                 }
@@ -222,28 +256,75 @@ namespace ApeFree.Cake2D.Skia
             }
             else if (image is Image gdiImage)
             {
-                using (MemoryStream ms = new MemoryStream())
+                if (!_gdiImageCache.TryGetValue(gdiImage, out SKImage cachedImage))
                 {
-                    gdiImage.Save(ms, ImageFormat.Png);
-                    ms.Seek(0, SeekOrigin.Begin);
-                    using (SKBitmap convertedBmp = SKBitmap.Decode(ms))
+                    cachedImage = ConvertGdiImageToSKImage(gdiImage);
+                    if (cachedImage != null)
                     {
-                        if (convertedBmp != null)
-                        {
-                            _canvas.DrawBitmap(convertedBmp, skDest);
-                        }
+                        _gdiImageCache.Add(gdiImage, cachedImage);
+                    }
+                }
+
+                if (cachedImage != null)
+                {
+                    _canvas.DrawImage(cachedImage, skDest);
+                }
+            }
+        }
+
+        private static SKImage ConvertGdiImageToSKImage(Image gdiImage)
+        {
+            if (gdiImage is Bitmap bmp)
+            {
+                BitmapData data = bmp.LockBits(
+                    new Rectangle(0, 0, bmp.Width, bmp.Height),
+                    ImageLockMode.ReadOnly,
+                    PixelFormat.Format32bppPArgb);
+                try
+                {
+                    SKImageInfo info = new SKImageInfo(bmp.Width, bmp.Height, SKColorType.Bgra8888, SKAlphaType.Premul);
+                    return SKImage.FromPixelCopy(info, data.Scan0, data.Stride);
+                }
+                finally
+                {
+                    bmp.UnlockBits(data);
+                }
+            }
+            else
+            {
+                using (Bitmap tmp = new Bitmap(gdiImage.Width, gdiImage.Height, PixelFormat.Format32bppPArgb))
+                {
+                    using (Graphics g = Graphics.FromImage(tmp))
+                    {
+                        g.DrawImage(gdiImage, 0, 0, gdiImage.Width, gdiImage.Height);
+                    }
+                    BitmapData data = tmp.LockBits(
+                        new Rectangle(0, 0, tmp.Width, tmp.Height),
+                        ImageLockMode.ReadOnly,
+                        PixelFormat.Format32bppPArgb);
+                    try
+                    {
+                        SKImageInfo info = new SKImageInfo(tmp.Width, tmp.Height, SKColorType.Bgra8888, SKAlphaType.Premul);
+                        return SKImage.FromPixelCopy(info, data.Scan0, data.Stride);
+                    }
+                    finally
+                    {
+                        tmp.UnlockBits(data);
                     }
                 }
             }
         }
 
-        private static SKPaint CreateStrokePaint(Color color, float width, bool dashed = false)
+        private SKPaint CreateStrokePaint(Color color, float width, bool dashed = false)
         {
+            float effectiveWidth = width / _currentScale;
+            if (effectiveWidth < 0.0001f) effectiveWidth = 0.0001f;
+
             SKPaint paint = new SKPaint
             {
                 Style = SKPaintStyle.Stroke,
                 Color = ToSKColor(color),
-                StrokeWidth = width < 0.5f ? 0.5f : width,
+                StrokeWidth = effectiveWidth,
                 IsAntialias = true,
                 StrokeCap = SKStrokeCap.Round,
                 StrokeJoin = SKStrokeJoin.Round
@@ -251,7 +332,7 @@ namespace ApeFree.Cake2D.Skia
 
             if (dashed)
             {
-                paint.PathEffect = SKPathEffect.CreateDash(new float[] { 6f, 6f }, 0f);
+                paint.PathEffect = SKPathEffect.CreateDash(new float[] { 6f / _currentScale, 6f / _currentScale }, 0f);
             }
 
             return paint;

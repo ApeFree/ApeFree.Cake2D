@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using ApeFree.Cake2D.Elements;
@@ -21,6 +21,9 @@ namespace ApeFree.Cake2D.Scene
 
         /// <summary>是否开启抗锯齿</summary>
         public bool AntiAlias { get; set; } = true;
+
+        /// <summary>是否开启视口视锥剔除（跳过视野外图元绘制，大幅提升万级图元性能）</summary>
+        public bool EnableFrustumCulling { get; set; } = true;
 
         /// <summary>顶层根节点图元列表</summary>
         public List<Element2D> Elements { get; } = new List<Element2D>();

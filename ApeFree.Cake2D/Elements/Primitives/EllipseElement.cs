@@ -6,6 +6,7 @@ namespace ApeFree.Cake2D.Elements.Primitives
 {
     /// <summary>
     /// 椭圆图元（以 Position 为中心）。
+    /// 借助底层仿射变换矩阵，支持任意角度旋转与非等比缩放下无失真的倾斜椭圆绘制。
     /// </summary>
     public class EllipseElement : Element2D
     {
@@ -40,27 +41,27 @@ namespace ApeFree.Cake2D.Elements.Primitives
 
         protected override void OnRender(IRenderCanvas canvas, RenderContext2D context)
         {
-            Matrix3x2 worldMatrix = GetWorldMatrix();
-            PointF screenCenter = context.Project(worldMatrix.TransformPoint(new PointF(0, 0)));
-
-            float screenRx = context.ProjectLength(RadiusX * Scale.X);
-            float screenRy = context.ProjectLength(RadiusY * Scale.Y);
-
             Color? stroke = StrokeColor;
             Color? fill = FillColor;
             float lineW = context.ResolveLineWidth(LineWidth);
 
-            context.Submit(ZIndex, c =>
+            Matrix3x2 transform = context.GetElementToScreenMatrix(this);
+            canvas.PushTransform(transform);
+            try
             {
                 if (fill.HasValue)
                 {
-                    c.FillEllipse(screenCenter, screenRx, screenRy, fill.Value);
+                    canvas.FillEllipse(PointF.Empty, RadiusX, RadiusY, fill.Value);
                 }
                 if (stroke.HasValue)
                 {
-                    c.DrawEllipse(screenCenter, screenRx, screenRy, stroke.Value, lineW);
+                    canvas.DrawEllipse(PointF.Empty, RadiusX, RadiusY, stroke.Value, lineW);
                 }
-            });
+            }
+            finally
+            {
+                canvas.PopTransform();
+            }
         }
     }
 }

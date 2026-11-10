@@ -1,6 +1,8 @@
-﻿using System;
+using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
+using ApeFree.Cake2D.Math;
 using ApeFree.Cake2D.Rendering;
 
 namespace ApeFree.Cake2D.Gdi
@@ -11,6 +13,12 @@ namespace ApeFree.Cake2D.Gdi
     public class GdiRenderCanvas : IRenderCanvas
     {
         private readonly Graphics _g;
+        private readonly Stack<GraphicsState> _stateStack = new Stack<GraphicsState>();
+        private readonly Stack<float> _scaleStack = new Stack<float>();
+        private float _currentScale = 1.0f;
+
+        // 静态预创建 9 种常用的 StringFormat，避免每帧高频分配与申请 GDI Handle
+        private static readonly Dictionary<TextAlignment, StringFormat> StringFormatCache = InitializeStringFormats();
 
         public Graphics Graphics => _g;
 
@@ -22,6 +30,31 @@ namespace ApeFree.Cake2D.Gdi
         public void Clear(Color backgroundColor)
         {
             _g.Clear(backgroundColor);
+        }
+
+        public void PushTransform(Matrix3x2 matrix)
+        {
+            _stateStack.Push(_g.Save());
+            _scaleStack.Push(_currentScale);
+
+            // 计算当前附加矩阵的平均缩放比例
+            float det = System.Math.Abs(matrix.M11 * matrix.M22 - matrix.M12 * matrix.M21);
+            float scale = (float)System.Math.Sqrt(det > 1e-6f ? det : 1f);
+            _currentScale *= scale;
+
+            using (var gdiMatrix = new System.Drawing.Drawing2D.Matrix(matrix.M11, matrix.M12, matrix.M21, matrix.M22, matrix.M31, matrix.M32))
+            {
+                _g.MultiplyTransform(gdiMatrix, MatrixOrder.Prepend);
+            }
+        }
+
+        public void PopTransform()
+        {
+            if (_stateStack.Count > 0)
+            {
+                _g.Restore(_stateStack.Pop());
+                _currentScale = _scaleStack.Count > 0 ? _scaleStack.Pop() : 1.0f;
+            }
         }
 
         public void DrawLine(PointF p1, PointF p2, Color color, float width, bool dashed = false)
@@ -133,9 +166,9 @@ namespace ApeFree.Cake2D.Gdi
             if (string.IsNullOrEmpty(text)) return;
 
             FontStyle style = isBold ? FontStyle.Bold : FontStyle.Regular;
+            StringFormat sf = GetStringFormat(alignment);
             using (Font font = new Font(string.IsNullOrEmpty(fontName) ? "Arial" : fontName, fontSize > 0 ? fontSize : 10f, style))
             using (SolidBrush brush = new SolidBrush(color))
-            using (StringFormat sf = CreateStringFormat(alignment))
             {
                 _g.DrawString(text, font, brush, position, sf);
             }
@@ -149,9 +182,13 @@ namespace ApeFree.Cake2D.Gdi
             }
         }
 
-        private static Pen CreatePen(Color color, float width, bool dashed = false)
+        private Pen CreatePen(Color color, float width, bool dashed = false)
         {
-            Pen pen = new Pen(color, width < 0.5f ? 0.5f : width);
+            // 将屏幕像素线宽转换为当前变换矩阵下的本地线宽，确保缩放与旋转下屏幕像素宽恒定
+            float effectiveWidth = width / _currentScale;
+            if (effectiveWidth < 0.0001f) effectiveWidth = 0.0001f;
+
+            Pen pen = new Pen(color, effectiveWidth);
             if (dashed)
             {
                 pen.DashStyle = DashStyle.Dash;
@@ -159,49 +196,24 @@ namespace ApeFree.Cake2D.Gdi
             return pen;
         }
 
-        private static StringFormat CreateStringFormat(TextAlignment alignment)
+        private static StringFormat GetStringFormat(TextAlignment alignment)
         {
-            StringFormat sf = new StringFormat();
-            switch (alignment)
-            {
-                case TextAlignment.TopLeft:
-                    sf.Alignment = StringAlignment.Near;
-                    sf.LineAlignment = StringAlignment.Near;
-                    break;
-                case TextAlignment.TopCenter:
-                    sf.Alignment = StringAlignment.Center;
-                    sf.LineAlignment = StringAlignment.Near;
-                    break;
-                case TextAlignment.TopRight:
-                    sf.Alignment = StringAlignment.Far;
-                    sf.LineAlignment = StringAlignment.Near;
-                    break;
-                case TextAlignment.MiddleLeft:
-                    sf.Alignment = StringAlignment.Near;
-                    sf.LineAlignment = StringAlignment.Center;
-                    break;
-                case TextAlignment.MiddleCenter:
-                    sf.Alignment = StringAlignment.Center;
-                    sf.LineAlignment = StringAlignment.Center;
-                    break;
-                case TextAlignment.MiddleRight:
-                    sf.Alignment = StringAlignment.Far;
-                    sf.LineAlignment = StringAlignment.Center;
-                    break;
-                case TextAlignment.BottomLeft:
-                    sf.Alignment = StringAlignment.Near;
-                    sf.LineAlignment = StringAlignment.Far;
-                    break;
-                case TextAlignment.BottomCenter:
-                    sf.Alignment = StringAlignment.Center;
-                    sf.LineAlignment = StringAlignment.Far;
-                    break;
-                case TextAlignment.BottomRight:
-                    sf.Alignment = StringAlignment.Far;
-                    sf.LineAlignment = StringAlignment.Far;
-                    break;
-            }
-            return sf;
+            return StringFormatCache.TryGetValue(alignment, out var sf) ? sf : StringFormat.GenericDefault;
+        }
+
+        private static Dictionary<TextAlignment, StringFormat> InitializeStringFormats()
+        {
+            var dict = new Dictionary<TextAlignment, StringFormat>();
+            dict[TextAlignment.TopLeft] = new StringFormat { Alignment = StringAlignment.Near, LineAlignment = StringAlignment.Near };
+            dict[TextAlignment.TopCenter] = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Near };
+            dict[TextAlignment.TopRight] = new StringFormat { Alignment = StringAlignment.Far, LineAlignment = StringAlignment.Near };
+            dict[TextAlignment.MiddleLeft] = new StringFormat { Alignment = StringAlignment.Near, LineAlignment = StringAlignment.Center };
+            dict[TextAlignment.MiddleCenter] = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
+            dict[TextAlignment.MiddleRight] = new StringFormat { Alignment = StringAlignment.Far, LineAlignment = StringAlignment.Center };
+            dict[TextAlignment.BottomLeft] = new StringFormat { Alignment = StringAlignment.Near, LineAlignment = StringAlignment.Far };
+            dict[TextAlignment.BottomCenter] = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Far };
+            dict[TextAlignment.BottomRight] = new StringFormat { Alignment = StringAlignment.Far, LineAlignment = StringAlignment.Far };
+            return dict;
         }
     }
 }

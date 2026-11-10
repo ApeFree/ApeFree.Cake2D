@@ -1,6 +1,5 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Drawing;
-using System.Linq;
 using ApeFree.Cake2D.Math;
 using ApeFree.Cake2D.Rendering;
 
@@ -8,6 +7,7 @@ namespace ApeFree.Cake2D.Elements.Primitives
 {
     /// <summary>
     /// 多边形图元。
+    /// 借助底层仿射变换矩阵，支持旋转、缩放与平移绘制。
     /// </summary>
     public class PolygonElement : Element2D
     {
@@ -37,28 +37,32 @@ namespace ApeFree.Cake2D.Elements.Primitives
         {
             if (Points.Count < 3) return;
 
-            Matrix3x2 worldMatrix = GetWorldMatrix();
-            PointF[] screenPoints = Points.Select(p => context.Project(worldMatrix.TransformPoint(p))).ToArray();
-
             Color? stroke = StrokeColor;
             Color? fill = FillColor;
             float lineW = context.ResolveLineWidth(LineWidth);
 
-            context.Submit(ZIndex, c =>
+            Matrix3x2 transform = context.GetElementToScreenMatrix(this);
+            canvas.PushTransform(transform);
+            try
             {
+                PointF[] pts = Points.ToArray();
                 if (fill.HasValue && stroke.HasValue)
                 {
-                    c.FillAndStrokePolygon(screenPoints, fill.Value, stroke.Value, lineW);
+                    canvas.FillAndStrokePolygon(pts, fill.Value, stroke.Value, lineW);
                 }
                 else if (fill.HasValue)
                 {
-                    c.FillPolygon(screenPoints, fill.Value);
+                    canvas.FillPolygon(pts, fill.Value);
                 }
                 else if (stroke.HasValue)
                 {
-                    c.DrawPolygon(screenPoints, stroke.Value, lineW);
+                    canvas.DrawPolygon(pts, stroke.Value, lineW);
                 }
-            });
+            }
+            finally
+            {
+                canvas.PopTransform();
+            }
         }
     }
 }

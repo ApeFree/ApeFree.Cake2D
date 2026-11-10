@@ -1,4 +1,4 @@
-﻿using System.Drawing;
+using System.Drawing;
 using ApeFree.Cake2D.Rendering;
 using ApeFree.Cake2D.Scene;
 
@@ -54,24 +54,21 @@ namespace ApeFree.Cake2D.Elements.Containers
             Color color = StrokeColor ?? Color.FromArgb(40, Color.Gray);
             float lineW = context.ResolveLineWidth(LineWidth);
 
-            context.Submit(ZIndex, c =>
+            // 绘制纵向网格线
+            for (float x = startX; x <= endX; x += spacing)
             {
-                // 绘制纵向网格线
-                for (float x = startX; x <= endX; x += spacing)
-                {
-                    PointF top = vp.WorldToScreen(new PointF(x, viewRect.Top));
-                    PointF bottom = vp.WorldToScreen(new PointF(x, viewRect.Bottom));
-                    c.DrawLine(top, bottom, color, lineW);
-                }
+                PointF top = vp.WorldToScreen(new PointF(x, viewRect.Top));
+                PointF bottom = vp.WorldToScreen(new PointF(x, viewRect.Bottom));
+                canvas.DrawLine(top, bottom, color, lineW);
+            }
 
-                // 绘制横向网格线
-                for (float y = startY; y <= endY; y += spacing)
-                {
-                    PointF left = vp.WorldToScreen(new PointF(viewRect.Left, y));
-                    PointF right = vp.WorldToScreen(new PointF(viewRect.Right, y));
-                    c.DrawLine(left, right, color, lineW);
-                }
-            });
+            // 绘制横向网格线
+            for (float y = startY; y <= endY; y += spacing)
+            {
+                PointF left = vp.WorldToScreen(new PointF(viewRect.Left, y));
+                PointF right = vp.WorldToScreen(new PointF(viewRect.Right, y));
+                canvas.DrawLine(left, right, color, lineW);
+            }
         }
     }
 }
