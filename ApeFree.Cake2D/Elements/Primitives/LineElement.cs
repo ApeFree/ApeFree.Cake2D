@@ -1,4 +1,4 @@
-﻿using System.Drawing;
+using System.Drawing;
 using ApeFree.Cake2D.Math;
 using ApeFree.Cake2D.Rendering;
 
@@ -6,6 +6,7 @@ namespace ApeFree.Cake2D.Elements.Primitives
 {
     /// <summary>
     /// 线段图元。
+    /// 借助底层仿射变换矩阵，支持旋转、缩放与平移绘制。
     /// </summary>
     public class LineElement : Element2D
     {
@@ -28,29 +29,36 @@ namespace ApeFree.Cake2D.Elements.Primitives
 
         public override RectangleF GetLocalBounds()
         {
-            return Math2D.GetBounds(new[] { Start.ToPointF(), End.ToPointF() });
+            RectangleF bounds = Math2D.GetBounds(new[] { Start.ToPointF(), End.ToPointF() });
+            // 考虑线宽膨胀，避免细长斜线被粗筛误杀
+            float pad = System.Math.Max(LineWidth > 0 ? LineWidth : 2f, 5f);
+            bounds.Inflate(pad, pad);
+            return bounds;
         }
 
         public override bool HitTest(PointF worldPoint)
         {
             PointF localPt = WorldToLocal(worldPoint);
-            return Math2D.IsPointNearLine(localPt, Start.ToPointF(), End.ToPointF(), tolerance: 5f);
+            float pad = System.Math.Max(LineWidth > 0 ? LineWidth / 2f : 1f, 5f);
+            return Math2D.IsPointNearLine(localPt, Start.ToPointF(), End.ToPointF(), tolerance: pad);
         }
 
         protected override void OnRender(IRenderCanvas canvas, RenderContext2D context)
         {
-            Matrix3x2 worldMatrix = GetWorldMatrix();
-            PointF p1 = context.Project(worldMatrix.TransformPoint(Start.ToPointF()));
-            PointF p2 = context.Project(worldMatrix.TransformPoint(End.ToPointF()));
-
             Color stroke = StrokeColor ?? Color.Black;
             float lineW = context.ResolveLineWidth(LineWidth);
             bool dashed = IsDashed;
 
-            context.Submit(ZIndex, c =>
+            Matrix3x2 transform = context.GetElementToScreenMatrix(this);
+            canvas.PushTransform(transform);
+            try
             {
-                c.DrawLine(p1, p2, stroke, lineW, dashed);
-            });
+                canvas.DrawLine(Start.ToPointF(), End.ToPointF(), stroke, lineW, dashed);
+            }
+            finally
+            {
+                canvas.PopTransform();
+            }
         }
     }
 }
