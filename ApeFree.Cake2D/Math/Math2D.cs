@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
@@ -161,15 +161,17 @@ namespace ApeFree.Cake2D.Math
         {
             if (rect.IsEmpty || matrix.IsIdentity) return rect;
 
-            PointF[] corners = new PointF[]
-            {
-                matrix.TransformPoint(new PointF(rect.Left, rect.Top)),
-                matrix.TransformPoint(new PointF(rect.Right, rect.Top)),
-                matrix.TransformPoint(new PointF(rect.Right, rect.Bottom)),
-                matrix.TransformPoint(new PointF(rect.Left, rect.Bottom))
-            };
+            PointF p1 = matrix.TransformPoint(new PointF(rect.Left, rect.Top));
+            PointF p2 = matrix.TransformPoint(new PointF(rect.Right, rect.Top));
+            PointF p3 = matrix.TransformPoint(new PointF(rect.Right, rect.Bottom));
+            PointF p4 = matrix.TransformPoint(new PointF(rect.Left, rect.Bottom));
 
-            return GetBounds(corners);
+            float minX = System.Math.Min(System.Math.Min(p1.X, p2.X), System.Math.Min(p3.X, p4.X));
+            float maxX = System.Math.Max(System.Math.Max(p1.X, p2.X), System.Math.Max(p3.X, p4.X));
+            float minY = System.Math.Min(System.Math.Min(p1.Y, p2.Y), System.Math.Min(p3.Y, p4.Y));
+            float maxY = System.Math.Max(System.Math.Max(p1.Y, p2.Y), System.Math.Max(p3.Y, p4.Y));
+
+            return new RectangleF(minX, minY, maxX - minX, maxY - minY);
         }
 
         /// <summary>计算点到线段的垂直/最短距离</summary>

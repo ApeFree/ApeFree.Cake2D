@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using ApeFree.Cake2D.Events;
@@ -118,6 +118,36 @@ namespace ApeFree.Cake2D.Elements
             return Math2D.GetTransformedBounds(GetLocalBounds(), GetWorldMatrix());
         }
 
+        /// <summary>获取包含图元自身及整棵子树在世界坐标系下的联合 AABB 包围矩形</summary>
+        public virtual RectangleF GetSubtreeWorldBounds()
+        {
+            RectangleF selfBounds = GetWorldBounds();
+            if (Children.Count == 0) return selfBounds;
+
+            float minX = selfBounds.IsEmpty ? float.MaxValue : selfBounds.Left;
+            float minY = selfBounds.IsEmpty ? float.MaxValue : selfBounds.Top;
+            float maxX = selfBounds.IsEmpty ? float.MinValue : selfBounds.Right;
+            float maxY = selfBounds.IsEmpty ? float.MinValue : selfBounds.Bottom;
+            bool any = !selfBounds.IsEmpty;
+
+            for (int i = 0; i < Children.Count; i++)
+            {
+                var child = Children[i];
+                if (!child.IsVisible) continue;
+                RectangleF cb = child.GetSubtreeWorldBounds();
+                if (cb.IsEmpty) continue;
+
+                any = true;
+                if (cb.Left < minX) minX = cb.Left;
+                if (cb.Right > maxX) maxX = cb.Right;
+                if (cb.Top < minY) minY = cb.Top;
+                if (cb.Bottom > maxY) maxY = cb.Bottom;
+            }
+
+            if (!any) return RectangleF.Empty;
+            return new RectangleF(minX, minY, maxX - minX, maxY - minY);
+        }
+
         /// <summary>测试给定的世界坐标点是否命中当前图元</summary>
         public virtual bool HitTest(PointF worldPoint)
         {
@@ -148,10 +178,53 @@ namespace ApeFree.Cake2D.Elements
         public void Render(IRenderCanvas canvas, RenderContext2D context)
         {
             if (!IsVisible) return;
-            OnRender(canvas, context);
-            foreach (Element2D child in Children)
+
+            // 视口视锥剔除：如果启用且图元（及其子树包围盒）在当前视口范围外，直接跳过
+            if (context != null && context.EnableCulling && !context.IsVisibleInViewport(this))
             {
-                child.Render(canvas, context);
+                return;
+            }
+
+            OnRender(canvas, context);
+
+            if (Children.Count > 0)
+            {
+                // 子节点按 ZIndex 升序依次渲染
+                int count = Children.Count;
+                if (count == 1)
+                {
+                    Children[0].Render(canvas, context);
+                }
+                else
+                {
+                    // 检查是否已是有序
+                    bool isSorted = true;
+                    for (int i = 0; i < count - 1; i++)
+                    {
+                        if (Children[i].ZIndex > Children[i + 1].ZIndex)
+                        {
+                            isSorted = false;
+                            break;
+                        }
+                    }
+
+                    if (isSorted)
+                    {
+                        for (int i = 0; i < count; i++)
+                        {
+                            Children[i].Render(canvas, context);
+                        }
+                    }
+                    else
+                    {
+                        var sorted = new List<Element2D>(Children);
+                        sorted.Sort((a, b) => a.ZIndex.CompareTo(b.ZIndex));
+                        for (int i = 0; i < sorted.Count; i++)
+                        {
+                            sorted[i].Render(canvas, context);
+                        }
+                    }
+                }
             }
         }
 
