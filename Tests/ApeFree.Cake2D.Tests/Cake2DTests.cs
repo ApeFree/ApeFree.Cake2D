@@ -32,6 +32,24 @@ namespace ApeFree.Cake2D.Tests
         }
 
         [TestMethod]
+        public void Vector2D_StrictEqualsAndNearlyEquals()
+        {
+            var v1 = new Vector2D(1.0f, 2.0f);
+            var v2 = new Vector2D(1.0f, 2.0f);
+            var v3 = new Vector2D(1.0000005f, 2.0f);
+
+            Assert.IsTrue(v1 == v2);
+            Assert.AreEqual(v1.GetHashCode(), v2.GetHashCode());
+
+            // 严格判等
+            Assert.IsFalse(v1 == v3);
+
+            // 容差近似判等
+            Assert.IsTrue(v1.NearlyEquals(v3, 1e-5f));
+            Assert.IsFalse(v1.NearlyEquals(v3, 1e-7f));
+        }
+
+        [TestMethod]
         public void Matrix3x2_TransformAndInvert()
         {
             var mTrans = Matrix3x2.CreateTranslation(10, 20);
@@ -164,6 +182,30 @@ namespace ApeFree.Cake2D.Tests
         }
 
         [TestMethod]
+        public void Element2D_TransformDirtyFlags_CachingWorks()
+        {
+            var elem = new RectangleElement(10, 20)
+            {
+                Position = new Vector2D(50, 60)
+            };
+
+            // 第一次获取计算矩阵
+            Matrix3x2 m1 = elem.GetWorldMatrix();
+            Assert.AreEqual(50f, m1.M31);
+            Assert.AreEqual(60f, m1.M32);
+
+            // 再次获取应直接命中缓存
+            Matrix3x2 m2 = elem.GetWorldMatrix();
+            Assert.AreEqual(m1, m2);
+
+            // 修改属性后自动置脏并刷新
+            elem.Position = new Vector2D(80, 90);
+            Matrix3x2 m3 = elem.GetWorldMatrix();
+            Assert.AreEqual(80f, m3.M31);
+            Assert.AreEqual(90f, m3.M32);
+        }
+
+        [TestMethod]
         public void GroupElement_BoundsCalculation_NoDoubleTransform()
         {
             var group = new GroupElement
@@ -187,6 +229,23 @@ namespace ApeFree.Cake2D.Tests
             Assert.AreEqual(100f, worldBounds.Top, 1e-4f);
             Assert.AreEqual(50f, worldBounds.Width, 1e-4f);
             Assert.AreEqual(50f, worldBounds.Height, 1e-4f);
+        }
+
+        [TestMethod]
+        public void GroupElement_HollowPenetration_DoesNotBlockBlankArea()
+        {
+            var group = new GroupElement();
+            var child1 = new RectangleElement(0, 0, 20, 20);
+            var child2 = new RectangleElement(100, 100, 20, 20);
+            group.AddChild(child1);
+            group.AddChild(child2);
+
+            // Group 的外接矩形覆盖 [0, 0] 到 [120, 120]
+            RectangleF localBounds = group.GetLocalBounds();
+            Assert.IsTrue(localBounds.Contains(new PointF(50, 50)));
+
+            // 但是点击 (50, 50) 的空白区域时，GroupElement 自身 HitTest 必须返回 false，支持中空穿透！
+            Assert.IsFalse(group.HitTest(new PointF(50, 50)));
         }
 
         [TestMethod]
@@ -245,8 +304,9 @@ namespace ApeFree.Cake2D.Tests
             // Click rect1
             var downArgs1 = new ApeFree.Cake2D.Events.ElementMouseEventArgs(
                 new PointF(20, 20), new PointF(20, 20), ApeFree.Cake2D.Events.CakeMouseButton.Left, 1, 0);
-            mgr.OnMouseDown(downArgs1);
+            bool handled1 = mgr.OnMouseDown(downArgs1);
 
+            Assert.IsTrue(handled1, "Hit interactive element should be handled by default");
             Assert.IsTrue(rect1.IsFocused);
             Assert.IsFalse(rect2.IsFocused);
             Assert.AreEqual(rect1, mgr.CapturedElement);
@@ -254,16 +314,18 @@ namespace ApeFree.Cake2D.Tests
             // Click rect2 -> rect1 should lose focus
             var downArgs2 = new ApeFree.Cake2D.Events.ElementMouseEventArgs(
                 new PointF(120, 120), new PointF(120, 120), ApeFree.Cake2D.Events.CakeMouseButton.Left, 1, 0);
-            mgr.OnMouseDown(downArgs2);
+            bool handled2 = mgr.OnMouseDown(downArgs2);
 
+            Assert.IsTrue(handled2);
             Assert.IsFalse(rect1.IsFocused, "rect1 should lose focus");
             Assert.IsTrue(rect2.IsFocused, "rect2 should be focused");
 
             // Click blank -> both lose focus
             var downArgsBlank = new ApeFree.Cake2D.Events.ElementMouseEventArgs(
                 new PointF(500, 500), new PointF(500, 500), ApeFree.Cake2D.Events.CakeMouseButton.Left, 1, 0);
-            mgr.OnMouseDown(downArgsBlank);
+            bool handledBlank = mgr.OnMouseDown(downArgsBlank);
 
+            Assert.IsFalse(handledBlank, "Blank click should not be handled");
             Assert.IsFalse(rect1.IsFocused);
             Assert.IsFalse(rect2.IsFocused);
             Assert.IsNull(mgr.FocusedElement);
