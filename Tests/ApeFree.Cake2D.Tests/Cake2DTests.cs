@@ -164,6 +164,112 @@ namespace ApeFree.Cake2D.Tests
         }
 
         [TestMethod]
+        public void GroupElement_BoundsCalculation_NoDoubleTransform()
+        {
+            var group = new GroupElement
+            {
+                Position = new Vector2D(100, 100)
+            };
+
+            var child = new RectangleElement(0, 0, 50, 50);
+            group.AddChild(child);
+
+            // Group's local bounds should be relative to group: [0, 0, 50, 50]
+            RectangleF localBounds = group.GetLocalBounds();
+            Assert.AreEqual(0f, localBounds.Left, 1e-4f);
+            Assert.AreEqual(0f, localBounds.Top, 1e-4f);
+            Assert.AreEqual(50f, localBounds.Width, 1e-4f);
+            Assert.AreEqual(50f, localBounds.Height, 1e-4f);
+
+            // Group's world bounds should be: [100, 100, 50, 50] (NOT [200, 200, 50, 50])
+            RectangleF worldBounds = group.GetWorldBounds();
+            Assert.AreEqual(100f, worldBounds.Left, 1e-4f);
+            Assert.AreEqual(100f, worldBounds.Top, 1e-4f);
+            Assert.AreEqual(50f, worldBounds.Width, 1e-4f);
+            Assert.AreEqual(50f, worldBounds.Height, 1e-4f);
+        }
+
+        [TestMethod]
+        public void SubtreeWorldBounds_EncompassesOffscreenParentWithOnscreenChild()
+        {
+            var parent = new GroupElement
+            {
+                Position = new Vector2D(2000, 2000)
+            };
+
+            var child = new RectangleElement(0, 0, 50, 50)
+            {
+                Position = new Vector2D(-2000, -2000)
+            };
+            parent.AddChild(child);
+
+            RectangleF subtreeBounds = parent.GetSubtreeWorldBounds();
+            // Child is at world (0, 0, 50, 50), parent subtree bounds must cover [0, 50]
+            Assert.IsTrue(subtreeBounds.Left <= 0f);
+            Assert.IsTrue(subtreeBounds.Top <= 0f);
+            Assert.IsTrue(subtreeBounds.Right >= 50f);
+            Assert.IsTrue(subtreeBounds.Bottom >= 50f);
+        }
+
+        [TestMethod]
+        public void TextElement_CenteredAlignment_BoundsOffset()
+        {
+            var text = new TextElement("ABC", 0, 0)
+            {
+                FontSize = 20f,
+                Alignment = TextAlignment.MiddleCenter
+            };
+
+            RectangleF bounds = text.GetLocalBounds();
+            // MiddleCenter should have bounds centered around (0,0)
+            Assert.IsTrue(bounds.Left < 0f, "Left should be negative for MiddleCenter");
+            Assert.IsTrue(bounds.Right > 0f, "Right should be positive for MiddleCenter");
+            Assert.IsTrue(bounds.Top < 0f, "Top should be negative for MiddleCenter");
+            Assert.IsTrue(bounds.Bottom > 0f, "Bottom should be positive for MiddleCenter");
+        }
+
+        [TestMethod]
+        public void ElementInteraction_FocusAndCapture()
+        {
+            var scene = new Scene2D();
+            scene.Viewport.Resize(800, 600);
+            scene.Viewport.SetView(new PointF(0, 0), 800f);
+
+            var rect1 = new RectangleElement(10, 10, 50, 50);
+            var rect2 = new RectangleElement(100, 100, 50, 50);
+            scene.Add(rect1);
+            scene.Add(rect2);
+
+            var mgr = scene.InteractionManager;
+
+            // Click rect1
+            var downArgs1 = new ApeFree.Cake2D.Events.ElementMouseEventArgs(
+                new PointF(20, 20), new PointF(20, 20), ApeFree.Cake2D.Events.CakeMouseButton.Left, 1, 0);
+            mgr.OnMouseDown(downArgs1);
+
+            Assert.IsTrue(rect1.IsFocused);
+            Assert.IsFalse(rect2.IsFocused);
+            Assert.AreEqual(rect1, mgr.CapturedElement);
+
+            // Click rect2 -> rect1 should lose focus
+            var downArgs2 = new ApeFree.Cake2D.Events.ElementMouseEventArgs(
+                new PointF(120, 120), new PointF(120, 120), ApeFree.Cake2D.Events.CakeMouseButton.Left, 1, 0);
+            mgr.OnMouseDown(downArgs2);
+
+            Assert.IsFalse(rect1.IsFocused, "rect1 should lose focus");
+            Assert.IsTrue(rect2.IsFocused, "rect2 should be focused");
+
+            // Click blank -> both lose focus
+            var downArgsBlank = new ApeFree.Cake2D.Events.ElementMouseEventArgs(
+                new PointF(500, 500), new PointF(500, 500), ApeFree.Cake2D.Events.CakeMouseButton.Left, 1, 0);
+            mgr.OnMouseDown(downArgsBlank);
+
+            Assert.IsFalse(rect1.IsFocused);
+            Assert.IsFalse(rect2.IsFocused);
+            Assert.IsNull(mgr.FocusedElement);
+        }
+
+        [TestMethod]
         public void HitTest_VariousElements()
         {
             var rect = new RectangleElement(0, 0, 100, 50);
