@@ -39,6 +39,12 @@ namespace ApeFree.Cake2D.Elements.Containers
             return new RectangleF(minX, minY, maxX - minX, maxY - minY);
         }
 
+        /// <summary>
+        /// 图元组自身默认不拦截空白区域（支持中空穿透）。
+        /// 命中测试优先由其子节点命中，避免组外接矩形的大面积空白误拦截下层图元交互。
+        /// </summary>
+        public override bool HitTest(PointF worldPoint) => false;
+
         protected override void OnRender(IRenderCanvas canvas, RenderContext2D context)
         {
             // 组自身不直接绘制，由基类遍历其 Children 进行绘制

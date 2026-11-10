@@ -23,19 +23,81 @@ namespace ApeFree.Cake2D.Elements
         public bool IsFocused { get; set; }
         public int ZIndex { get; set; } = 0;
 
-        // ─── 本地空间变换 ────────────────────────────────────────────────────
+        // ─── 本地空间变换（带脏标记缓存） ──────────────────────────────────────
+
+        private Vector2D _position = Vector2D.Zero;
+        private float _rotation = 0f;
+        private Vector2D _scale = Vector2D.One;
+        private Vector2D _origin = Vector2D.Zero;
+
+        private bool _isLocalMatrixDirty = true;
+        private bool _isWorldMatrixDirty = true;
+        private Matrix3x2 _cachedLocalMatrix = Matrix3x2.Identity;
+        private Matrix3x2 _cachedWorldMatrix = Matrix3x2.Identity;
 
         /// <summary>本地坐标系位置（相对于父节点）</summary>
-        public Vector2D Position { get; set; } = Vector2D.Zero;
+        public Vector2D Position
+        {
+            get => _position;
+            set
+            {
+                if (_position == value) return;
+                _position = value;
+                InvalidateTransform();
+            }
+        }
 
         /// <summary>旋转角度（度数，顺时针）</summary>
-        public float Rotation { get; set; } = 0f;
+        public float Rotation
+        {
+            get => _rotation;
+            set
+            {
+                if (_rotation == value) return;
+                _rotation = value;
+                InvalidateTransform();
+            }
+        }
 
         /// <summary>缩放比例</summary>
-        public Vector2D Scale { get; set; } = Vector2D.One;
+        public Vector2D Scale
+        {
+            get => _scale;
+            set
+            {
+                if (_scale == value) return;
+                _scale = value;
+                InvalidateTransform();
+            }
+        }
 
         /// <summary>局部变换的原点/旋转锚点（相对于自身左上角）</summary>
-        public Vector2D Origin { get; set; } = Vector2D.Zero;
+        public Vector2D Origin
+        {
+            get => _origin;
+            set
+            {
+                if (_origin == value) return;
+                _origin = value;
+                InvalidateTransform();
+            }
+        }
+
+        /// <summary>使当前图元及所有后代图元的变换矩阵缓存失效</summary>
+        public void InvalidateTransform()
+        {
+            _isLocalMatrixDirty = true;
+            InvalidateWorldTransform();
+        }
+
+        private void InvalidateWorldTransform()
+        {
+            _isWorldMatrixDirty = true;
+            for (int i = 0; i < Children.Count; i++)
+            {
+                Children[i].InvalidateWorldTransform();
+            }
+        }
 
         // ─── 外观样式 ────────────────────────────────────────────────────────
 
@@ -62,6 +124,7 @@ namespace ApeFree.Cake2D.Elements
             child.Parent?.RemoveChild(child);
             child.Parent = this;
             Children.Add(child);
+            child.InvalidateWorldTransform();
         }
 
         public void RemoveChild(Element2D child)
@@ -70,28 +133,40 @@ namespace ApeFree.Cake2D.Elements
             if (Children.Remove(child))
             {
                 child.Parent = null;
+                child.InvalidateWorldTransform();
             }
         }
 
         // ─── 矩阵变换 ────────────────────────────────────────────────────────
 
-        /// <summary>计算本元素的本地变换矩阵</summary>
+        /// <summary>计算本元素的本地变换矩阵（带脏标记缓存）</summary>
         public virtual Matrix3x2 GetLocalMatrix()
         {
-            Matrix3x2 m = Matrix3x2.CreateTranslation(-Origin.X, -Origin.Y);
-            if (Scale != Vector2D.One)
-                m *= Matrix3x2.CreateScale(Scale);
-            if (System.Math.Abs(Rotation) > 1e-5f)
-                m *= Matrix3x2.CreateRotation(Math2D.ToRadians(Rotation));
-            m *= Matrix3x2.CreateTranslation(Origin.X + Position.X, Origin.Y + Position.Y);
+            if (!_isLocalMatrixDirty) return _cachedLocalMatrix;
+
+            Matrix3x2 m = Matrix3x2.CreateTranslation(-_origin.X, -_origin.Y);
+            if (_scale != Vector2D.One)
+                m *= Matrix3x2.CreateScale(_scale);
+            if (System.Math.Abs(_rotation) > 1e-5f)
+                m *= Matrix3x2.CreateRotation(Math2D.ToRadians(_rotation));
+            m *= Matrix3x2.CreateTranslation(_origin.X + _position.X, _origin.Y + _position.Y);
+
+            _cachedLocalMatrix = m;
+            _isLocalMatrixDirty = false;
             return m;
         }
 
-        /// <summary>计算本元素的世界变换矩阵（递归叠加所有祖先节点的变换）</summary>
+        /// <summary>计算本元素的世界变换矩阵（递归叠加所有祖先节点的变换，带脏标记缓存）</summary>
         public virtual Matrix3x2 GetWorldMatrix()
         {
+            if (!_isWorldMatrixDirty) return _cachedWorldMatrix;
+
             Matrix3x2 local = GetLocalMatrix();
-            return Parent != null ? local * Parent.GetWorldMatrix() : local;
+            Matrix3x2 world = Parent != null ? local * Parent.GetWorldMatrix() : local;
+
+            _cachedWorldMatrix = world;
+            _isWorldMatrixDirty = false;
+            return world;
         }
 
         /// <summary>本地坐标转世界坐标</summary>
