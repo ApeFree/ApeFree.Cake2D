@@ -15,6 +15,7 @@ namespace ApeFree.Cake2D.Interaction
     {
         private readonly Scene2D _scene;
         private readonly List<Element2D> _sortedRoots = new List<Element2D>();
+        private readonly List<Element2D> _childSortBuffer = new List<Element2D>();
         private Element2D _hoveredElement;
         private Element2D _pressedElement;
         private Element2D _capturedElement;
@@ -82,12 +83,35 @@ namespace ApeFree.Cake2D.Interaction
                 }
                 else
                 {
-                    var sortedChildren = new List<Element2D>(element.Children);
-                    sortedChildren.Sort((a, b) => b.ZIndex.CompareTo(a.ZIndex));
-                    for (int i = 0; i < sortedChildren.Count; i++)
+                    // 检测子节点是否已为 ZIndex 降序（最普遍情况下所有子节点 ZIndex 均为 0）
+                    bool isDescending = true;
+                    for (int i = 0; i < childCount - 1; i++)
                     {
-                        Element2D hit = HitTestElementTree(sortedChildren[i], worldPoint);
-                        if (hit != null) return hit;
+                        if (element.Children[i].ZIndex < element.Children[i + 1].ZIndex)
+                        {
+                            isDescending = false;
+                            break;
+                        }
+                    }
+
+                    if (isDescending)
+                    {
+                        for (int i = 0; i < childCount; i++)
+                        {
+                            Element2D hit = HitTestElementTree(element.Children[i], worldPoint);
+                            if (hit != null) return hit;
+                        }
+                    }
+                    else
+                    {
+                        _childSortBuffer.Clear();
+                        _childSortBuffer.AddRange(element.Children);
+                        _childSortBuffer.Sort((a, b) => b.ZIndex.CompareTo(a.ZIndex));
+                        for (int i = 0; i < _childSortBuffer.Count; i++)
+                        {
+                            Element2D hit = HitTestElementTree(_childSortBuffer[i], worldPoint);
+                            if (hit != null) return hit;
+                        }
                     }
                 }
             }
@@ -122,6 +146,8 @@ namespace ApeFree.Cake2D.Interaction
 
             if (hit != null)
             {
+                // 命中了可交互图元，默认消费事件，阻止视口平移抢夺控制权
+                e.Handled = true;
                 hit.OnMouseDown(e);
                 return e.Handled;
             }
