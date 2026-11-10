@@ -1,4 +1,6 @@
-﻿using System;
+#if CAKE2D_WINFORMS
+
+using System;
 using System.ComponentModel;
 using System.Drawing;
 using System.Drawing.Drawing2D;
@@ -169,3 +171,5 @@ namespace ApeFree.Cake2D.Gdi.Controls
         }
     }
 }
+
+#endif

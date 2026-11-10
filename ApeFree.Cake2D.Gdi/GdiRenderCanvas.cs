@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
@@ -9,6 +10,7 @@ namespace ApeFree.Cake2D.Gdi
 {
     /// <summary>
     /// 基于 GDI+ (System.Drawing) 的 2D 渲染适配器，实现 <see cref="IRenderCanvas"/> 接口。
+    /// 内置 Pen/Brush/Font 静态资源池，杜绝每帧高频申请与销毁 Windows GDI 原生句柄。
     /// </summary>
     public class GdiRenderCanvas : IRenderCanvas
     {
@@ -19,6 +21,10 @@ namespace ApeFree.Cake2D.Gdi
 
         // 静态预创建 9 种常用的 StringFormat，避免每帧高频分配与申请 GDI Handle
         private static readonly Dictionary<TextAlignment, StringFormat> StringFormatCache = InitializeStringFormats();
+
+        // 静态对象池：复用 SolidBrush 与 Font，杜绝高频 GDI 句柄创建与内核态切换
+        private static readonly ConcurrentDictionary<int, SolidBrush> BrushCache = new ConcurrentDictionary<int, SolidBrush>();
+        private static readonly ConcurrentDictionary<string, Font> FontCache = new ConcurrentDictionary<string, Font>();
 
         public Graphics Graphics => _g;
 
@@ -86,16 +92,14 @@ namespace ApeFree.Cake2D.Gdi
         public void FillPolygon(PointF[] points, Color fillColor)
         {
             if (points == null || points.Length < 3) return;
-            using (SolidBrush brush = new SolidBrush(fillColor))
-            {
-                _g.FillPolygon(brush, points);
-            }
+            SolidBrush brush = GetOrCreateBrush(fillColor);
+            _g.FillPolygon(brush, points);
         }
 
         public void FillAndStrokePolygon(PointF[] points, Color fillColor, Color strokeColor, float strokeWidth)
         {
             if (points == null || points.Length < 3) return;
-            using (SolidBrush brush = new SolidBrush(fillColor))
+            SolidBrush brush = GetOrCreateBrush(fillColor);
             using (Pen pen = CreatePen(strokeColor, strokeWidth))
             {
                 _g.FillPolygon(brush, points);
@@ -113,15 +117,13 @@ namespace ApeFree.Cake2D.Gdi
 
         public void FillRectangle(RectangleF rect, Color color)
         {
-            using (SolidBrush brush = new SolidBrush(color))
-            {
-                _g.FillRectangle(brush, rect);
-            }
+            SolidBrush brush = GetOrCreateBrush(color);
+            _g.FillRectangle(brush, rect);
         }
 
         public void FillAndStrokeRectangle(RectangleF rect, Color fillColor, Color strokeColor, float strokeWidth)
         {
-            using (SolidBrush brush = new SolidBrush(fillColor))
+            SolidBrush brush = GetOrCreateBrush(fillColor);
             using (Pen pen = CreatePen(strokeColor, strokeWidth))
             {
                 _g.FillRectangle(brush, rect);
@@ -139,10 +141,8 @@ namespace ApeFree.Cake2D.Gdi
 
         public void FillCircle(PointF center, float radius, Color color)
         {
-            using (SolidBrush brush = new SolidBrush(color))
-            {
-                _g.FillEllipse(brush, center.X - radius, center.Y - radius, radius * 2f, radius * 2f);
-            }
+            SolidBrush brush = GetOrCreateBrush(color);
+            _g.FillEllipse(brush, center.X - radius, center.Y - radius, radius * 2f, radius * 2f);
         }
 
         public void DrawEllipse(PointF center, float radiusX, float radiusY, Color color, float width)
@@ -155,10 +155,8 @@ namespace ApeFree.Cake2D.Gdi
 
         public void FillEllipse(PointF center, float radiusX, float radiusY, Color color)
         {
-            using (SolidBrush brush = new SolidBrush(color))
-            {
-                _g.FillEllipse(brush, center.X - radiusX, center.Y - radiusY, radiusX * 2f, radiusY * 2f);
-            }
+            SolidBrush brush = GetOrCreateBrush(color);
+            _g.FillEllipse(brush, center.X - radiusX, center.Y - radiusY, radiusX * 2f, radiusY * 2f);
         }
 
         public void DrawText(string text, PointF position, Color color, string fontName, float fontSize, bool isBold, TextAlignment alignment)
@@ -167,11 +165,10 @@ namespace ApeFree.Cake2D.Gdi
 
             FontStyle style = isBold ? FontStyle.Bold : FontStyle.Regular;
             StringFormat sf = GetStringFormat(alignment);
-            using (Font font = new Font(string.IsNullOrEmpty(fontName) ? "Arial" : fontName, fontSize > 0 ? fontSize : 10f, style))
-            using (SolidBrush brush = new SolidBrush(color))
-            {
-                _g.DrawString(text, font, brush, position, sf);
-            }
+            Font font = GetOrCreateFont(fontName, fontSize, style);
+            SolidBrush brush = GetOrCreateBrush(color);
+
+            _g.DrawString(text, font, brush, position, sf);
         }
 
         public void DrawImage(object image, RectangleF destRect)
@@ -194,6 +191,20 @@ namespace ApeFree.Cake2D.Gdi
                 pen.DashStyle = DashStyle.Dash;
             }
             return pen;
+        }
+
+        private static SolidBrush GetOrCreateBrush(Color color)
+        {
+            int argb = color.ToArgb();
+            return BrushCache.GetOrAdd(argb, c => new SolidBrush(Color.FromArgb(c)));
+        }
+
+        private static Font GetOrCreateFont(string fontName, float fontSize, FontStyle style)
+        {
+            string name = string.IsNullOrEmpty(fontName) ? "Arial" : fontName;
+            float size = fontSize > 0 ? fontSize : 10f;
+            string key = $"{name}_{size}_{style}";
+            return FontCache.GetOrAdd(key, _ => new Font(name, size, style));
         }
 
         private static StringFormat GetStringFormat(TextAlignment alignment)
