@@ -448,10 +448,10 @@ namespace ApeFree.Cake2D.Tests
             bool childClicked = false;
             bool parentClicked = false;
 
+            // 常规业务代码：子节点不手写 e.Handled = false，事件也应自然向上冒泡传递至父容器
             childRect.MouseDown += (s, e) =>
             {
                 childClicked = true;
-                e.Handled = false; // Allow bubbling to parent
             };
 
             group.MouseDown += (s, e) =>
@@ -466,8 +466,111 @@ namespace ApeFree.Cake2D.Tests
             bool handled = mgr.OnMouseDown(downArgs);
 
             Assert.IsTrue(childClicked, "Child element should receive MouseDown first");
-            Assert.IsTrue(parentClicked, "Parent container should receive bubbled MouseDown");
-            Assert.IsTrue(handled, "Bubbled event handled by parent should return true");
+            Assert.IsTrue(parentClicked, "Parent container should naturally receive bubbled MouseDown without special code");
+            Assert.IsTrue(handled, "Hit interactive tree should be handled by default to prevent canvas pan");
+        }
+
+        [TestMethod]
+        public void Interaction_EventBubbling_InterceptionByChild()
+        {
+            var scene = new Scene2D();
+            scene.Viewport.Resize(800, 600);
+            scene.Viewport.SetView(new PointF(0, 0), 800f);
+
+            var group = new GroupElement();
+            var childRect = new RectangleElement(10, 10, 50, 50);
+            group.AddChild(childRect);
+            scene.Add(group);
+
+            bool childClicked = false;
+            bool parentClicked = false;
+
+            // 子节点显式标记 Handled = true 时，应主动阻断向上冒泡
+            childRect.MouseDown += (s, e) =>
+            {
+                childClicked = true;
+                e.Handled = true;
+            };
+
+            group.MouseDown += (s, e) =>
+            {
+                parentClicked = true;
+            };
+
+            var mgr = scene.InteractionManager;
+            var downArgs = new ApeFree.Cake2D.Events.ElementMouseEventArgs(
+                new PointF(20, 20), new PointF(20, 20), ApeFree.Cake2D.Events.CakeMouseButton.Left, 1, 0);
+
+            bool handled = mgr.OnMouseDown(downArgs);
+
+            Assert.IsTrue(childClicked);
+            Assert.IsFalse(parentClicked, "Parent should NOT receive event when child explicitly sets Handled = true");
+            Assert.IsTrue(handled);
+        }
+
+        [TestMethod]
+        public void TextElement_CadMode_RotationAndBaselineDirection()
+        {
+            var scene = new Scene2D();
+            scene.Viewport.YAxisUpwards = true; // CAD 模式
+            scene.Viewport.Resize(800, 600);
+            scene.Viewport.SetView(new PointF(0, 0), 800f);
+
+            var text = new TextElement("CAD Pipe", 0, 0)
+            {
+                Rotation = 30f // 世界中沿 X 轴逆时针（向 +Y 方向）旋转 30 度
+            };
+            scene.Add(text);
+
+            var context = new RenderContext2D(scene);
+            Matrix3x2 transform = context.GetElementToScreenMatrix(text);
+
+            if (context.Viewport.YAxisUpwards)
+            {
+                transform = new Matrix3x2(
+                    transform.M11,
+                    transform.M12,
+                    -transform.M21,
+                    -transform.M22,
+                    transform.M31,
+                    transform.M32
+                );
+            }
+
+            // 1. 基线方向：世界中 Y 轴向上，旋转 +30 度代表朝右上倾斜。
+            // 在屏幕空间中，向上对应负 Y，因此屏幕基线角度应为 -30 度（即 330 度）
+            PointF pOrigin = transform.TransformPoint(new PointF(0, 0));
+            PointF pBaselineEnd = transform.TransformPoint(new PointF(100, 0));
+            float screenDx = pBaselineEnd.X - pOrigin.X;
+            float screenDy = pBaselineEnd.Y - pOrigin.Y;
+
+            Assert.IsTrue(screenDx > 0f, "CAD baseline should extend rightwards on screen");
+            Assert.IsTrue(screenDy < 0f, "CAD +30deg should point upwards on screen (negative screen Y)");
+
+            // 2. 变换行列式检查：必须为正数，杜绝镜像字形
+            float det = transform.M11 * transform.M22 - transform.M12 * transform.M21;
+            Assert.IsTrue(det > 0f, "Transform determinant must be positive so text glyphs are not mirrored");
+        }
+
+        [TestMethod]
+        public void GdiRenderCanvas_ContinuousZoom_NoCrashOrThrashing()
+        {
+            using (var bmp = new Bitmap(100, 100))
+            using (var g = Graphics.FromImage(bmp))
+            {
+                var canvas = new ApeFree.Cake2D.Gdi.GdiRenderCanvas(g);
+
+                // 模拟用户连续鼠标滚轮缩放 1000 帧，涉及不同尺度和线宽，确保不会抛出 ArgumentException 或引发内存崩溃
+                for (int i = 1; i <= 1000; i++)
+                {
+                    float scale = 0.1f + (i * 0.01f);
+                    canvas.PushTransform(Matrix3x2.CreateScale(scale, scale));
+                    canvas.DrawLine(new PointF(0, 0), new PointF(50, 50), Color.Red, 1.0f);
+                    canvas.DrawLine(new PointF(10, 10), new PointF(60, 60), Color.Blue, 2.5f);
+                    canvas.DrawRectangle(new RectangleF(5, 5, 20, 20), Color.Green, 1.0f);
+                    canvas.PopTransform();
+                }
+            }
         }
 
         [TestMethod]
