@@ -26,15 +26,15 @@ namespace ApeFree.Cake2D.Elements.Billboards
 
         public override RectangleF GetLocalBounds()
         {
-            // 估算文本包围盒（考虑宽字符/中文字符估算）
-            float charWidthRatio = 0.7f;
+            if (string.IsNullOrEmpty(Text)) return RectangleF.Empty;
+
+            // 按单字符精确区分宽窄字符计算文本宽度，大幅降低排版与包围盒偏差
+            float width = 0f;
             for (int i = 0; i < Text.Length; i++)
             {
-                if (Text[i] > 127) { charWidthRatio = 1.0f; break; }
+                width += (Text[i] > 127 ? 1.0f : 0.6f) * FontSize;
             }
-
-            float width = Text.Length * FontSize * charWidthRatio;
-            float height = FontSize * 1.2f;
+            float height = FontSize * 1.25f;
 
             // 根据对齐方式调整包围盒原点偏移
             float offsetX = 0f;
@@ -90,7 +90,15 @@ namespace ApeFree.Cake2D.Elements.Billboards
             // 当 Y 轴向上（CAD 模式，垂直镜像）时，需要反转 Y 轴，保持标牌文字屏幕正向阅读
             if (context.Viewport.YAxisUpwards)
             {
-                transform = Matrix3x2.CreateScale(1f, -1f) * transform;
+                // 翻转 Y 轴基底向量，使文字笔划向下正向绘制，同时保持基线朝向与锚点屏幕位置完全精准
+                transform = new Matrix3x2(
+                    transform.M11,
+                    transform.M12,
+                    -transform.M21,
+                    -transform.M22,
+                    transform.M31,
+                    transform.M32
+                );
             }
 
             canvas.PushTransform(transform);
