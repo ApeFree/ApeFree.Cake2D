@@ -26,6 +26,7 @@ namespace ApeFree.Cake2D.Gdi
         private const int MaxCacheCapacity = 512;
         private static readonly ConcurrentDictionary<int, SolidBrush> BrushCache = new ConcurrentDictionary<int, SolidBrush>();
         private static readonly ConcurrentDictionary<string, Font> FontCache = new ConcurrentDictionary<string, Font>();
+        private static readonly ConcurrentDictionary<int, Pen> CosmeticPenCache = new ConcurrentDictionary<int, Pen>();
         private static readonly ConcurrentDictionary<PenKey, Pen> PenCache = new ConcurrentDictionary<PenKey, Pen>();
 
         private readonly struct PenKey : IEquatable<PenKey>
@@ -37,7 +38,7 @@ namespace ApeFree.Cake2D.Gdi
             public PenKey(int argb, float width, bool dashed)
             {
                 Argb = argb;
-                WidthKey = (int)System.Math.Round(width * 20f); // 0.05px 精度量化缓存
+                WidthKey = (int)System.Math.Round(width * 4f); // 0.25px 步长量化，大幅抑制缩放时 key 爆炸
                 Dashed = dashed;
             }
 
@@ -185,7 +186,22 @@ namespace ApeFree.Cake2D.Gdi
 
         private Pen GetOrCreatePen(Color color, float width, bool dashed = false)
         {
-            // 将屏幕像素线宽转换为当前变换矩阵下的本地线宽，确保缩放与旋转下屏幕像素宽恒定
+            // 针对 1px 屏幕线宽（最普遍情况），采用 GDI+ 原生 Cosmetic Pen（width=0），线宽恒为 1px 设备像素且与仿射缩放脱钩
+            if (System.Math.Abs(width - 1.0f) < 1e-3f)
+            {
+                int cosmeticKey = color.ToArgb() ^ (dashed ? 1 : 0);
+                if (CosmeticPenCache.TryGetValue(cosmeticKey, out Pen cPen))
+                    return cPen;
+
+                if (CosmeticPenCache.Count < MaxCacheCapacity)
+                {
+                    Pen newCPen = new Pen(color, 0f); // 0f 触发 GDI+ 原生 Cosmetic 模式
+                    if (dashed) newCPen.DashStyle = DashStyle.Dash;
+                    return CosmeticPenCache.GetOrAdd(cosmeticKey, newCPen);
+                }
+            }
+
+            // 对于非 1px 线宽，计算当前变换下的本地线宽（0.25px 离散化量化，有效遏制连续缩放下的 Key 膨胀）
             float effectiveWidth = width / _currentScale;
             if (effectiveWidth < 0.0001f) effectiveWidth = 0.0001f;
 
@@ -195,21 +211,16 @@ namespace ApeFree.Cake2D.Gdi
                 return pen;
             }
 
-            if (PenCache.Count >= MaxCacheCapacity)
+            Pen newPen = new Pen(color, effectiveWidth);
+            if (dashed) newPen.DashStyle = DashStyle.Dash;
+
+            // 容量保护：当达到上限时不再将非核心临时实例入池，杜绝清仓颠簸与 Use-After-Free 崩溃
+            if (PenCache.Count < MaxCacheCapacity)
             {
-                foreach (var p in PenCache.Values)
-                {
-                    try { p.Dispose(); } catch { }
-                }
-                PenCache.Clear();
+                return PenCache.GetOrAdd(key, newPen);
             }
 
-            Pen newPen = new Pen(color, effectiveWidth);
-            if (dashed)
-            {
-                newPen.DashStyle = DashStyle.Dash;
-            }
-            return PenCache.GetOrAdd(key, newPen);
+            return newPen;
         }
 
         private static SolidBrush GetOrCreateBrush(Color color)
@@ -220,16 +231,13 @@ namespace ApeFree.Cake2D.Gdi
                 return brush;
             }
 
-            if (BrushCache.Count >= MaxCacheCapacity)
+            SolidBrush newBrush = new SolidBrush(Color.FromArgb(argb));
+            if (BrushCache.Count < MaxCacheCapacity)
             {
-                foreach (var b in BrushCache.Values)
-                {
-                    try { b.Dispose(); } catch { }
-                }
-                BrushCache.Clear();
+                return BrushCache.GetOrAdd(argb, newBrush);
             }
 
-            return BrushCache.GetOrAdd(argb, c => new SolidBrush(Color.FromArgb(c)));
+            return newBrush;
         }
 
         private static Font GetOrCreateFont(string fontName, float fontSize, FontStyle style)
@@ -243,16 +251,13 @@ namespace ApeFree.Cake2D.Gdi
                 return font;
             }
 
-            if (FontCache.Count >= MaxCacheCapacity)
+            Font newFont = new Font(name, size, style);
+            if (FontCache.Count < MaxCacheCapacity)
             {
-                foreach (var f in FontCache.Values)
-                {
-                    try { f.Dispose(); } catch { }
-                }
-                FontCache.Clear();
+                return FontCache.GetOrAdd(key, newFont);
             }
 
-            return FontCache.GetOrAdd(key, _ => new Font(name, size, style));
+            return newFont;
         }
 
         private static StringFormat GetStringFormat(TextAlignment alignment)
