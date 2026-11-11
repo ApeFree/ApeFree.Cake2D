@@ -387,5 +387,111 @@ namespace ApeFree.Cake2D.Tests
                 Assert.AreEqual(255, pixel.Blue);
             }
         }
+
+        [TestMethod]
+        public void GridElement_ExtremeViewport_NoInfiniteLoop()
+        {
+            var scene = new Scene2D();
+            scene.Viewport.Resize(0, 0); // Collapsed viewport
+            var grid = new GridElement { AutoScale = true, GridSpacing = 50f };
+            scene.Add(grid);
+
+            using (var bmp = new Bitmap(10, 10))
+            using (var g = Graphics.FromImage(bmp))
+            {
+                var canvas = new ApeFree.Cake2D.Gdi.GdiRenderCanvas(g);
+                var engine = new Engine2D();
+                // Should not hang or throw exception
+                engine.Render(scene, canvas);
+            }
+
+            // Test massive span with AutoScale = false
+            scene.Viewport.Resize(800, 600);
+            scene.Viewport.SetView(new PointF(0, 0), 1_000_000f);
+            grid.AutoScale = false;
+            using (var bmp = new Bitmap(10, 10))
+            using (var g = Graphics.FromImage(bmp))
+            {
+                var canvas = new ApeFree.Cake2D.Gdi.GdiRenderCanvas(g);
+                var engine = new Engine2D();
+                // Safety line clamp prevents freezing
+                engine.Render(scene, canvas);
+            }
+        }
+
+        [TestMethod]
+        public void TextElement_MixedCharacterBounds_Accurate()
+        {
+            var text = new TextElement("Hello 世界", 0, 0)
+            {
+                FontSize = 10f
+            };
+
+            RectangleF bounds = text.GetLocalBounds();
+            // 6 ASCII chars (6 * 0.6 = 3.6) + 2 Wide chars (2 * 1.0 = 2.0) = 5.6 * 10 = 56px
+            Assert.AreEqual(56f, bounds.Width, 1e-3f);
+            Assert.AreEqual(12.5f, bounds.Height, 1e-3f);
+        }
+
+        [TestMethod]
+        public void Interaction_EventBubbling_ToParent()
+        {
+            var scene = new Scene2D();
+            scene.Viewport.Resize(800, 600);
+            scene.Viewport.SetView(new PointF(0, 0), 800f);
+
+            var group = new GroupElement();
+            var childRect = new RectangleElement(10, 10, 50, 50);
+            group.AddChild(childRect);
+            scene.Add(group);
+
+            bool childClicked = false;
+            bool parentClicked = false;
+
+            childRect.MouseDown += (s, e) =>
+            {
+                childClicked = true;
+                e.Handled = false; // Allow bubbling to parent
+            };
+
+            group.MouseDown += (s, e) =>
+            {
+                parentClicked = true;
+            };
+
+            var mgr = scene.InteractionManager;
+            var downArgs = new ApeFree.Cake2D.Events.ElementMouseEventArgs(
+                new PointF(20, 20), new PointF(20, 20), ApeFree.Cake2D.Events.CakeMouseButton.Left, 1, 0);
+
+            bool handled = mgr.OnMouseDown(downArgs);
+
+            Assert.IsTrue(childClicked, "Child element should receive MouseDown first");
+            Assert.IsTrue(parentClicked, "Parent container should receive bubbled MouseDown");
+            Assert.IsTrue(handled, "Bubbled event handled by parent should return true");
+        }
+
+        [TestMethod]
+        public void Interaction_UnhandledEvent_ReleasesCapture()
+        {
+            var scene = new Scene2D();
+            scene.Viewport.Resize(800, 600);
+            scene.Viewport.SetView(new PointF(0, 0), 800f);
+
+            var rect = new RectangleElement(10, 10, 50, 50);
+            rect.MouseDown += (s, e) =>
+            {
+                e.Handled = false; // Intentionally don't consume, allowing viewport panning
+            };
+            scene.Add(rect);
+
+            var mgr = scene.InteractionManager;
+            var downArgs = new ApeFree.Cake2D.Events.ElementMouseEventArgs(
+                new PointF(20, 20), new PointF(20, 20), ApeFree.Cake2D.Events.CakeMouseButton.Left, 1, 0);
+
+            bool handled = mgr.OnMouseDown(downArgs);
+
+            Assert.IsFalse(handled, "Unhandled event should return false to allow viewport pan");
+            Assert.IsNull(mgr.CapturedElement, "Capture should be released if event wasn't handled");
+        }
     }
 }
