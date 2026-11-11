@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
@@ -27,6 +28,13 @@ namespace ApeFree.Cake2D.Skia
         // 弱引用缓存表：仅在 Windows 环境下向下兼容 GDI+ Image 到 SKImage 的无损转换
         private static readonly ConditionalWeakTable<Image, SKImage> _gdiImageCache = new ConditionalWeakTable<Image, SKImage>();
 #endif
+
+        // Typeface 资源池缓存，容量上限 512
+        private static readonly ConcurrentDictionary<string, SKTypeface> TypefaceCache = new ConcurrentDictionary<string, SKTypeface>();
+        private const int MaxTypefaceCacheCapacity = 512;
+
+        // 字符码点 -> 最佳匹配字体名称缓存
+        private static readonly ConcurrentDictionary<int, string> RuneToFamilyCache = new ConcurrentDictionary<int, string>();
 
         public SKCanvas Canvas => _canvas;
 
@@ -246,11 +254,145 @@ namespace ApeFree.Cake2D.Skia
             if (string.IsNullOrEmpty(text)) return;
 
             SKFontStyleWeight weight = isBold ? SKFontStyleWeight.Bold : SKFontStyleWeight.Normal;
-            using (SKTypeface typeface = SKTypeface.FromFamilyName(fontName, weight, SKFontStyleWidth.Normal, SKFontStyleSlant.Upright))
+            SKTypeface primaryTypeface = GetOrCreateTypeface(fontName, weight);
+            float actualFontSize = fontSize > 0 ? fontSize : 10f;
+
+            // Tier 1: 纯 ASCII 快速通道 (0 字符检测开销)
+            if (IsAsciiOnly(text))
+            {
+                DrawSingleRun(text, position, color, primaryTypeface, actualFontSize, alignment);
+                return;
+            }
+
+            // Tier 2: 探测当前主字体或首个匹配字体能否全覆盖
+            if (CanTypefaceCoverAll(primaryTypeface, text))
+            {
+                DrawSingleRun(text, position, color, primaryTypeface, actualFontSize, alignment);
+                return;
+            }
+
+            // 获取首个缺失字符的最佳匹配字体
+            int firstMissingRune = FindFirstMissingRune(primaryTypeface, text);
+            SKTypeface fallbackTypeface = GetFallbackTypefaceForRune(firstMissingRune, weight);
+
+            if (CanTypefaceCoverAll(fallbackTypeface, text))
+            {
+                DrawSingleRun(text, position, color, fallbackTypeface, actualFontSize, alignment);
+                return;
+            }
+
+            // Tier 3: 极端多语系混排兜底 (Run-level 切分绘制)
+            DrawMultiRunText(text, position, color, primaryTypeface, weight, actualFontSize, alignment);
+        }
+
+        private static bool IsAsciiOnly(string s)
+        {
+            for (int i = 0; i < s.Length; i++)
+            {
+                if (s[i] > 127) return false;
+            }
+            return true;
+        }
+
+        private static int GetSafeRune(string text, ref int index)
+        {
+            char c = text[index];
+            if (char.IsHighSurrogate(c))
+            {
+                if (index + 1 < text.Length && char.IsLowSurrogate(text[index + 1]))
+                {
+                    int rune = char.ConvertToUtf32(text, index);
+                    index++; // 跳过低代理项
+                    return rune;
+                }
+                return c;
+            }
+            return c;
+        }
+
+        private static bool CanTypefaceCoverAll(SKTypeface typeface, string text)
+        {
+            if (typeface == null) return false;
+            int i = 0;
+            while (i < text.Length)
+            {
+                if (text[i] > 127)
+                {
+                    int rune = GetSafeRune(text, ref i);
+                    if (!typeface.ContainsGlyph(rune)) return false;
+                }
+                i++;
+            }
+            return true;
+        }
+
+        private static int FindFirstMissingRune(SKTypeface typeface, string text)
+        {
+            int i = 0;
+            while (i < text.Length)
+            {
+                if (text[i] > 127)
+                {
+                    int rune = GetSafeRune(text, ref i);
+                    if (typeface == null || !typeface.ContainsGlyph(rune))
+                    {
+                        return rune;
+                    }
+                }
+                i++;
+            }
+            return 0;
+        }
+
+        private static SKTypeface GetFallbackTypefaceForRune(int rune, SKFontStyleWeight weight)
+        {
+            if (!RuneToFamilyCache.TryGetValue(rune, out string familyName))
+            {
+                using (SKTypeface matched = SKFontManager.Default.MatchCharacter(rune))
+                {
+                    familyName = matched?.FamilyName;
+                }
+
+                if (RuneToFamilyCache.Count < MaxTypefaceCacheCapacity)
+                {
+                    RuneToFamilyCache.TryAdd(rune, familyName);
+                }
+            }
+
+            return GetOrCreateTypeface(familyName, weight);
+        }
+
+        private static SKTypeface GetOrCreateTypeface(string familyName, SKFontStyleWeight weight)
+        {
+            string key = $"{familyName ?? "Default"}_{weight}";
+            if (TypefaceCache.TryGetValue(key, out var tf)) return tf;
+
+            SKTypeface newTf;
+            if (string.IsNullOrEmpty(familyName))
+            {
+                newTf = SKTypeface.FromFamilyName(null, weight, SKFontStyleWidth.Normal, SKFontStyleSlant.Upright) 
+                        ?? SKTypeface.Default;
+            }
+            else
+            {
+                newTf = SKTypeface.FromFamilyName(familyName, weight, SKFontStyleWidth.Normal, SKFontStyleSlant.Upright) 
+                        ?? SKTypeface.FromFamilyName(null, weight, SKFontStyleWidth.Normal, SKFontStyleSlant.Upright) 
+                        ?? SKTypeface.Default;
+            }
+
+            if (TypefaceCache.Count < MaxTypefaceCacheCapacity)
+            {
+                return TypefaceCache.GetOrAdd(key, newTf);
+            }
+            return newTf;
+        }
+
+        private void DrawSingleRun(string text, PointF position, Color color, SKTypeface typeface, float fontSize, TextAlignment alignment)
+        {
             using (SKPaint paint = new SKPaint
             {
-                Typeface = typeface ?? SKTypeface.Default,
-                TextSize = fontSize > 0 ? fontSize : 10f,
+                Typeface = typeface,
+                TextSize = fontSize,
                 Color = ToSKColor(color),
                 IsAntialias = true
             })
@@ -299,6 +441,106 @@ namespace ApeFree.Cake2D.Skia
                 }
 
                 _canvas.DrawText(text, drawX, drawY, paint);
+            }
+        }
+
+        private void DrawMultiRunText(string text, PointF position, Color color, SKTypeface primary, SKFontStyleWeight weight, float fontSize, TextAlignment alignment)
+        {
+            var runs = new List<(string Content, SKTypeface Typeface)>();
+            int runStartIndex = 0;
+            SKTypeface currentTf = null;
+
+            int i = 0;
+            while (i < text.Length)
+            {
+                int charStartIndex = i;
+                int rune = GetSafeRune(text, ref i);
+                i++;
+
+                SKTypeface resolved = (primary != null && primary.ContainsGlyph(rune))
+                    ? primary
+                    : GetFallbackTypefaceForRune(rune, weight);
+
+                if (currentTf == null)
+                {
+                    currentTf = resolved;
+                    runStartIndex = charStartIndex;
+                }
+                else if (currentTf != resolved)
+                {
+                    runs.Add((text.Substring(runStartIndex, charStartIndex - runStartIndex), currentTf));
+                    currentTf = resolved;
+                    runStartIndex = charStartIndex;
+                }
+            }
+
+            if (runStartIndex < text.Length && currentTf != null)
+            {
+                runs.Add((text.Substring(runStartIndex, text.Length - runStartIndex), currentTf));
+            }
+
+            if (runs.Count == 0) return;
+
+            float totalWidth = 0f;
+            float maxAscent = 0f;
+            float maxDescent = 0f;
+            var runWidths = new float[runs.Count];
+
+            using (SKPaint measurePaint = new SKPaint { TextSize = fontSize, IsAntialias = true })
+            {
+                for (int r = 0; r < runs.Count; r++)
+                {
+                    measurePaint.Typeface = runs[r].Typeface;
+                    SKFontMetrics metrics = measurePaint.FontMetrics;
+                    if (-metrics.Ascent > maxAscent) maxAscent = -metrics.Ascent;
+                    if (metrics.Descent > maxDescent) maxDescent = metrics.Descent;
+
+                    runWidths[r] = measurePaint.MeasureText(runs[r].Content);
+                    totalWidth += runWidths[r];
+                }
+            }
+
+            float totalHeight = maxAscent + maxDescent;
+            float originX = position.X;
+            float baselineY = position.Y + maxAscent;
+
+            switch (alignment)
+            {
+                case TextAlignment.TopCenter:
+                case TextAlignment.MiddleCenter:
+                case TextAlignment.BottomCenter:
+                    originX -= totalWidth * 0.5f;
+                    break;
+                case TextAlignment.TopRight:
+                case TextAlignment.MiddleRight:
+                case TextAlignment.BottomRight:
+                    originX -= totalWidth;
+                    break;
+            }
+
+            switch (alignment)
+            {
+                case TextAlignment.MiddleLeft:
+                case TextAlignment.MiddleCenter:
+                case TextAlignment.MiddleRight:
+                    baselineY -= totalHeight * 0.5f;
+                    break;
+                case TextAlignment.BottomLeft:
+                case TextAlignment.BottomCenter:
+                case TextAlignment.BottomRight:
+                    baselineY -= totalHeight;
+                    break;
+            }
+
+            using (SKPaint drawPaint = new SKPaint { TextSize = fontSize, Color = ToSKColor(color), IsAntialias = true })
+            {
+                float currentX = originX;
+                for (int r = 0; r < runs.Count; r++)
+                {
+                    drawPaint.Typeface = runs[r].Typeface;
+                    _canvas.DrawText(runs[r].Content, currentX, baselineY, drawPaint);
+                    currentX += runWidths[r];
+                }
             }
         }
 

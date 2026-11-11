@@ -10,8 +10,23 @@ namespace ApeFree.Cake2D.Elements.Billboards
     /// </summary>
     public class TextElement : Element2D
     {
+        /// <summary>
+        /// 全局默认字体名称。默认为 null，代表交由具体渲染引擎自适应匹配操作系统最佳字体。
+        /// </summary>
+        public static string DefaultFontName { get; set; } = null;
+
+        private string _fontName;
+
+        /// <summary>
+        /// 字体名称。若未显式指定，则继承自 <see cref="DefaultFontName"/>。
+        /// </summary>
+        public string FontName
+        {
+            get => _fontName ?? DefaultFontName;
+            set => _fontName = value;
+        }
+
         public string Text { get; set; } = string.Empty;
-        public string FontName { get; set; } = "Arial";
         public float FontSize { get; set; } = 12f;
         public bool IsBold { get; set; } = false;
         public TextAlignment Alignment { get; set; } = TextAlignment.TopLeft;

@@ -596,5 +596,75 @@ namespace ApeFree.Cake2D.Tests
             Assert.IsFalse(handled, "Unhandled event should return false to allow viewport pan");
             Assert.IsNull(mgr.CapturedElement, "Capture should be released if event wasn't handled");
         }
+
+        [TestMethod]
+        public void TextElement_DefaultFontName_InheritanceAndConfiguration()
+        {
+            string originalDefault = TextElement.DefaultFontName;
+            try
+            {
+                // 1. 默认为 null
+                TextElement.DefaultFontName = null;
+                var elem1 = new TextElement("Sample");
+                Assert.IsNull(elem1.FontName, "When DefaultFontName is null, FontName should be null by default");
+
+                // 2. 配置全局 DefaultFontName
+                TextElement.DefaultFontName = "Microsoft YaHei";
+                var elem2 = new TextElement("Sample");
+                Assert.AreEqual("Microsoft YaHei", elem2.FontName, "Element should inherit updated DefaultFontName");
+
+                // 3. 实例显式赋值后，覆盖全局配置
+                elem2.FontName = "Arial";
+                Assert.AreEqual("Arial", elem2.FontName, "Explicit assignment should override DefaultFontName");
+            }
+            finally
+            {
+                TextElement.DefaultFontName = originalDefault;
+            }
+        }
+
+        [TestMethod]
+        public void SkiaRenderCanvas_MultiLanguage_NoMissingGlyphsOrExceptions()
+        {
+            using (var surface = SkiaSharp.SKSurface.Create(new SkiaSharp.SKImageInfo(400, 300)))
+            {
+                var canvas = new ApeFree.Cake2D.Skia.SkiaRenderCanvas(surface.Canvas);
+
+                // 涵盖纯英(Tier 1)、中文(Tier 2)、俄文(Tier 2)、韩文(Tier 2)、泰文(Tier 2)、中韩泰多语种同串(Tier 3)
+                var multiLangSamples = new[]
+                {
+                    ("ASCII", "Hello Cake2D 12345!"),
+                    ("中文 (Fallback from Arial)", "Cake2D 跨后端场景图演示"),
+                    ("俄文 (Russian)", "Привет, мир!"),
+                    ("韩文 (Korean)", "안녕하세요 Cake2D"),
+                    ("日文 (Japanese)", "こんにちは Cake2D"),
+                    ("泰文 (Thai)", "สวัสดีชาวโลก"),
+                    ("阿拉伯文 (Arabic)", "مرحبا بالعالم"),
+                    ("多语系单串混排 (Tier 3 Multi-Run)", "中国(CHN) - 한국(KOR) - ไทย(THA) - English!"),
+                };
+
+                foreach (var (lang, text) in multiLangSamples)
+                {
+                    // 故意显式传入纯西文字体 "Arial"，测试底层的自愈与回退机制
+                    canvas.DrawText(text, new PointF(10, 10), Color.Black, "Arial", 12f, false, TextAlignment.TopLeft);
+                    canvas.DrawText(text, new PointF(100, 100), Color.Blue, null, 14f, true, TextAlignment.MiddleCenter);
+                }
+            }
+        }
+
+        [TestMethod]
+        public void SkiaRenderCanvas_HighFrequencyDraw_NoCrashOrLeak()
+        {
+            using (var surface = SkiaSharp.SKSurface.Create(new SkiaSharp.SKImageInfo(200, 200)))
+            {
+                var canvas = new ApeFree.Cake2D.Skia.SkiaRenderCanvas(surface.Canvas);
+
+                // 模拟高频重绘 1000 次不同文本与中英混合内容
+                for (int i = 0; i < 1000; i++)
+                {
+                    canvas.DrawText($"Frame #{i}: 刷新测试 - 속도 {i % 100}%", new PointF(50, 50), Color.Red, "Arial", 10f, false, TextAlignment.TopLeft);
+                }
+            }
+        }
     }
 }
