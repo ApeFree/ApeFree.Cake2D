@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Drawing;
 using ApeFree.Cake2D.Math;
 
@@ -190,6 +190,25 @@ namespace ApeFree.Cake2D.Scene
                 : screenCenterY + (worldPt.Y - _viewCenter.Y) * pixelsPerUnit;
 
             return new PointF(screenX, screenY);
+        }
+
+        /// <summary>获取世界坐标系到屏幕像素坐标系的仿射变换矩阵</summary>
+        public Matrix3x2 GetWorldToScreenMatrix()
+        {
+            var rect = DrawRectangle;
+            if (rect.Width <= 0 || _viewWidth <= 0) return Matrix3x2.Identity;
+
+            float screenCenterX = rect.Left + rect.Width * 0.5f;
+            float screenCenterY = rect.Top + rect.Height * 0.5f;
+            float pixelsPerUnit = rect.Width / _viewWidth;
+            float scaleY = YAxisUpwards ? -pixelsPerUnit : pixelsPerUnit;
+
+            float tx = screenCenterX - _viewCenter.X * pixelsPerUnit;
+            float ty = YAxisUpwards
+                ? screenCenterY + _viewCenter.Y * pixelsPerUnit
+                : screenCenterY - _viewCenter.Y * pixelsPerUnit;
+
+            return new Matrix3x2(pixelsPerUnit, 0f, 0f, scaleY, tx, ty);
         }
 
         /// <summary>获取当前屏幕视口对应的世界坐标矩形边界 (AABB)</summary>

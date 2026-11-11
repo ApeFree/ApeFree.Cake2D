@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using ApeFree.Cake2D.Events;
@@ -23,19 +23,81 @@ namespace ApeFree.Cake2D.Elements
         public bool IsFocused { get; set; }
         public int ZIndex { get; set; } = 0;
 
-        // ─── 本地空间变换 ────────────────────────────────────────────────────
+        // ─── 本地空间变换（带脏标记缓存） ──────────────────────────────────────
+
+        private Vector2D _position = Vector2D.Zero;
+        private float _rotation = 0f;
+        private Vector2D _scale = Vector2D.One;
+        private Vector2D _origin = Vector2D.Zero;
+
+        private bool _isLocalMatrixDirty = true;
+        private bool _isWorldMatrixDirty = true;
+        private Matrix3x2 _cachedLocalMatrix = Matrix3x2.Identity;
+        private Matrix3x2 _cachedWorldMatrix = Matrix3x2.Identity;
 
         /// <summary>本地坐标系位置（相对于父节点）</summary>
-        public Vector2D Position { get; set; } = Vector2D.Zero;
+        public Vector2D Position
+        {
+            get => _position;
+            set
+            {
+                if (_position == value) return;
+                _position = value;
+                InvalidateTransform();
+            }
+        }
 
         /// <summary>旋转角度（度数，顺时针）</summary>
-        public float Rotation { get; set; } = 0f;
+        public float Rotation
+        {
+            get => _rotation;
+            set
+            {
+                if (_rotation == value) return;
+                _rotation = value;
+                InvalidateTransform();
+            }
+        }
 
         /// <summary>缩放比例</summary>
-        public Vector2D Scale { get; set; } = Vector2D.One;
+        public Vector2D Scale
+        {
+            get => _scale;
+            set
+            {
+                if (_scale == value) return;
+                _scale = value;
+                InvalidateTransform();
+            }
+        }
 
         /// <summary>局部变换的原点/旋转锚点（相对于自身左上角）</summary>
-        public Vector2D Origin { get; set; } = Vector2D.Zero;
+        public Vector2D Origin
+        {
+            get => _origin;
+            set
+            {
+                if (_origin == value) return;
+                _origin = value;
+                InvalidateTransform();
+            }
+        }
+
+        /// <summary>使当前图元及所有后代图元的变换矩阵缓存失效</summary>
+        public void InvalidateTransform()
+        {
+            _isLocalMatrixDirty = true;
+            InvalidateWorldTransform();
+        }
+
+        private void InvalidateWorldTransform()
+        {
+            _isWorldMatrixDirty = true;
+            for (int i = 0; i < Children.Count; i++)
+            {
+                Children[i].InvalidateWorldTransform();
+            }
+        }
 
         // ─── 外观样式 ────────────────────────────────────────────────────────
 
@@ -62,6 +124,7 @@ namespace ApeFree.Cake2D.Elements
             child.Parent?.RemoveChild(child);
             child.Parent = this;
             Children.Add(child);
+            child.InvalidateWorldTransform();
         }
 
         public void RemoveChild(Element2D child)
@@ -70,28 +133,40 @@ namespace ApeFree.Cake2D.Elements
             if (Children.Remove(child))
             {
                 child.Parent = null;
+                child.InvalidateWorldTransform();
             }
         }
 
         // ─── 矩阵变换 ────────────────────────────────────────────────────────
 
-        /// <summary>计算本元素的本地变换矩阵</summary>
+        /// <summary>计算本元素的本地变换矩阵（带脏标记缓存）</summary>
         public virtual Matrix3x2 GetLocalMatrix()
         {
-            Matrix3x2 m = Matrix3x2.CreateTranslation(-Origin.X, -Origin.Y);
-            if (Scale != Vector2D.One)
-                m *= Matrix3x2.CreateScale(Scale);
-            if (System.Math.Abs(Rotation) > 1e-5f)
-                m *= Matrix3x2.CreateRotation(Math2D.ToRadians(Rotation));
-            m *= Matrix3x2.CreateTranslation(Origin.X + Position.X, Origin.Y + Position.Y);
+            if (!_isLocalMatrixDirty) return _cachedLocalMatrix;
+
+            Matrix3x2 m = Matrix3x2.CreateTranslation(-_origin.X, -_origin.Y);
+            if (_scale != Vector2D.One)
+                m *= Matrix3x2.CreateScale(_scale);
+            if (System.Math.Abs(_rotation) > 1e-5f)
+                m *= Matrix3x2.CreateRotation(Math2D.ToRadians(_rotation));
+            m *= Matrix3x2.CreateTranslation(_origin.X + _position.X, _origin.Y + _position.Y);
+
+            _cachedLocalMatrix = m;
+            _isLocalMatrixDirty = false;
             return m;
         }
 
-        /// <summary>计算本元素的世界变换矩阵（递归叠加所有祖先节点的变换）</summary>
+        /// <summary>计算本元素的世界变换矩阵（递归叠加所有祖先节点的变换，带脏标记缓存）</summary>
         public virtual Matrix3x2 GetWorldMatrix()
         {
+            if (!_isWorldMatrixDirty) return _cachedWorldMatrix;
+
             Matrix3x2 local = GetLocalMatrix();
-            return Parent != null ? local * Parent.GetWorldMatrix() : local;
+            Matrix3x2 world = Parent != null ? local * Parent.GetWorldMatrix() : local;
+
+            _cachedWorldMatrix = world;
+            _isWorldMatrixDirty = false;
+            return world;
         }
 
         /// <summary>本地坐标转世界坐标</summary>
@@ -116,6 +191,36 @@ namespace ApeFree.Cake2D.Elements
         public virtual RectangleF GetWorldBounds()
         {
             return Math2D.GetTransformedBounds(GetLocalBounds(), GetWorldMatrix());
+        }
+
+        /// <summary>获取包含图元自身及整棵子树在世界坐标系下的联合 AABB 包围矩形</summary>
+        public virtual RectangleF GetSubtreeWorldBounds()
+        {
+            RectangleF selfBounds = GetWorldBounds();
+            if (Children.Count == 0) return selfBounds;
+
+            float minX = selfBounds.IsEmpty ? float.MaxValue : selfBounds.Left;
+            float minY = selfBounds.IsEmpty ? float.MaxValue : selfBounds.Top;
+            float maxX = selfBounds.IsEmpty ? float.MinValue : selfBounds.Right;
+            float maxY = selfBounds.IsEmpty ? float.MinValue : selfBounds.Bottom;
+            bool any = !selfBounds.IsEmpty;
+
+            for (int i = 0; i < Children.Count; i++)
+            {
+                var child = Children[i];
+                if (!child.IsVisible) continue;
+                RectangleF cb = child.GetSubtreeWorldBounds();
+                if (cb.IsEmpty) continue;
+
+                any = true;
+                if (cb.Left < minX) minX = cb.Left;
+                if (cb.Right > maxX) maxX = cb.Right;
+                if (cb.Top < minY) minY = cb.Top;
+                if (cb.Bottom > maxY) maxY = cb.Bottom;
+            }
+
+            if (!any) return RectangleF.Empty;
+            return new RectangleF(minX, minY, maxX - minX, maxY - minY);
         }
 
         /// <summary>测试给定的世界坐标点是否命中当前图元</summary>
@@ -148,10 +253,53 @@ namespace ApeFree.Cake2D.Elements
         public void Render(IRenderCanvas canvas, RenderContext2D context)
         {
             if (!IsVisible) return;
-            OnRender(canvas, context);
-            foreach (Element2D child in Children)
+
+            // 视口视锥剔除：如果启用且图元（及其子树包围盒）在当前视口范围外，直接跳过
+            if (context != null && context.EnableCulling && !context.IsVisibleInViewport(this))
             {
-                child.Render(canvas, context);
+                return;
+            }
+
+            OnRender(canvas, context);
+
+            if (Children.Count > 0)
+            {
+                // 子节点按 ZIndex 升序依次渲染
+                int count = Children.Count;
+                if (count == 1)
+                {
+                    Children[0].Render(canvas, context);
+                }
+                else
+                {
+                    // 检查是否已是有序
+                    bool isSorted = true;
+                    for (int i = 0; i < count - 1; i++)
+                    {
+                        if (Children[i].ZIndex > Children[i + 1].ZIndex)
+                        {
+                            isSorted = false;
+                            break;
+                        }
+                    }
+
+                    if (isSorted)
+                    {
+                        for (int i = 0; i < count; i++)
+                        {
+                            Children[i].Render(canvas, context);
+                        }
+                    }
+                    else
+                    {
+                        var sorted = new List<Element2D>(Children);
+                        sorted.Sort((a, b) => a.ZIndex.CompareTo(b.ZIndex));
+                        for (int i = 0; i < sorted.Count; i++)
+                        {
+                            sorted[i].Render(canvas, context);
+                        }
+                    }
+                }
             }
         }
 

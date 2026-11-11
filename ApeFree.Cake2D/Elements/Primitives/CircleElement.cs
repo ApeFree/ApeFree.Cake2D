@@ -1,4 +1,4 @@
-﻿using System.Drawing;
+using System.Drawing;
 using ApeFree.Cake2D.Math;
 using ApeFree.Cake2D.Rendering;
 
@@ -6,6 +6,7 @@ namespace ApeFree.Cake2D.Elements.Primitives
 {
     /// <summary>
     /// 正圆图元（以 Position 为圆心）。
+    /// 借助底层仿射变换矩阵实现旋转与缩放下的精确几何呈现。
     /// </summary>
     public class CircleElement : Element2D
     {
@@ -34,28 +35,27 @@ namespace ApeFree.Cake2D.Elements.Primitives
 
         protected override void OnRender(IRenderCanvas canvas, RenderContext2D context)
         {
-            Matrix3x2 worldMatrix = GetWorldMatrix();
-            PointF worldCenter = worldMatrix.TransformPoint(new PointF(0, 0));
-            PointF screenCenter = context.Project(worldCenter);
-
-            // 计算世界半径在屏幕上的像素长度（考虑缩放）
-            float screenRadius = context.ProjectLength(Radius * System.Math.Max(Scale.X, Scale.Y));
-
             Color? stroke = StrokeColor;
             Color? fill = FillColor;
             float lineW = context.ResolveLineWidth(LineWidth);
 
-            context.Submit(ZIndex, c =>
+            Matrix3x2 transform = context.GetElementToScreenMatrix(this);
+            canvas.PushTransform(transform);
+            try
             {
                 if (fill.HasValue)
                 {
-                    c.FillCircle(screenCenter, screenRadius, fill.Value);
+                    canvas.FillCircle(PointF.Empty, Radius, fill.Value);
                 }
                 if (stroke.HasValue)
                 {
-                    c.DrawCircle(screenCenter, screenRadius, stroke.Value, lineW);
+                    canvas.DrawCircle(PointF.Empty, Radius, stroke.Value, lineW);
                 }
-            });
+            }
+            finally
+            {
+                canvas.PopTransform();
+            }
         }
     }
 }

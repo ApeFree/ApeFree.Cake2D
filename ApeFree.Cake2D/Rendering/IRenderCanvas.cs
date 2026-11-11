@@ -1,15 +1,22 @@
-﻿using System.Drawing;
+using System.Drawing;
+using ApeFree.Cake2D.Math;
 
 namespace ApeFree.Cake2D.Rendering
 {
     /// <summary>
     /// 平台无关的 2D 绘图基元接口。
-    /// 所有坐标均为屏幕像素坐标（原点位于视口左上角）。
+    /// 支持屏幕像素坐标与通过变换栈下推的本地仿射变换坐标。
     /// </summary>
     public interface IRenderCanvas
     {
         /// <summary>以指定颜色清空画布</summary>
         void Clear(Color backgroundColor);
+
+        /// <summary>保存当前绘图状态，并将指定的仿射矩阵附加（乘）到当前画布变换栈</summary>
+        void PushTransform(Matrix3x2 matrix);
+
+        /// <summary>弹出变换栈顶的仿射变换矩阵，恢复上一级画布绘图状态</summary>
+        void PopTransform();
 
         /// <summary>绘制线段</summary>
         void DrawLine(PointF p1, PointF p2, Color color, float width, bool dashed = false);

@@ -1,4 +1,4 @@
-﻿using System.Drawing;
+using System.Drawing;
 using ApeFree.Cake2D.Math;
 using ApeFree.Cake2D.Rendering;
 
@@ -6,6 +6,7 @@ namespace ApeFree.Cake2D.Elements.Primitives
 {
     /// <summary>
     /// 矩形图元。
+    /// 借助底层仿射变换矩阵，支持旋转、缩放与平移绘制，免除顶点数组高频堆分配。
     /// </summary>
     public class RectangleElement : Element2D
     {
@@ -31,35 +32,34 @@ namespace ApeFree.Cake2D.Elements.Primitives
 
         protected override void OnRender(IRenderCanvas canvas, RenderContext2D context)
         {
-            Matrix3x2 worldMatrix = GetWorldMatrix();
-
-            // 顺时针获取矩形的四个顶点
-            PointF p0 = context.Project(worldMatrix.TransformPoint(new PointF(0, 0)));
-            PointF p1 = context.Project(worldMatrix.TransformPoint(new PointF(Width, 0)));
-            PointF p2 = context.Project(worldMatrix.TransformPoint(new PointF(Width, Height)));
-            PointF p3 = context.Project(worldMatrix.TransformPoint(new PointF(0, Height)));
-
-            PointF[] screenPoints = new[] { p0, p1, p2, p3 };
+            if (Width <= 0f || Height <= 0f) return;
 
             Color? stroke = StrokeColor;
             Color? fill = FillColor;
             float lineW = context.ResolveLineWidth(LineWidth);
 
-            context.Submit(ZIndex, c =>
+            Matrix3x2 transform = context.GetElementToScreenMatrix(this);
+            canvas.PushTransform(transform);
+            try
             {
+                RectangleF localRect = new RectangleF(0, 0, Width, Height);
                 if (fill.HasValue && stroke.HasValue)
                 {
-                    c.FillAndStrokePolygon(screenPoints, fill.Value, stroke.Value, lineW);
+                    canvas.FillAndStrokeRectangle(localRect, fill.Value, stroke.Value, lineW);
                 }
                 else if (fill.HasValue)
                 {
-                    c.FillPolygon(screenPoints, fill.Value);
+                    canvas.FillRectangle(localRect, fill.Value);
                 }
                 else if (stroke.HasValue)
                 {
-                    c.DrawPolygon(screenPoints, stroke.Value, lineW);
+                    canvas.DrawRectangle(localRect, stroke.Value, lineW);
                 }
-            });
+            }
+            finally
+            {
+                canvas.PopTransform();
+            }
         }
     }
 }

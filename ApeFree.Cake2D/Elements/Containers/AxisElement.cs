@@ -1,4 +1,4 @@
-﻿using System.Drawing;
+using System.Drawing;
 using ApeFree.Cake2D.Rendering;
 using ApeFree.Cake2D.Scene;
 
@@ -32,21 +32,18 @@ namespace ApeFree.Cake2D.Elements.Containers
             Color xCol = XAxisColor;
             Color yCol = YAxisColor;
 
-            context.Submit(ZIndex, c =>
-            {
-                // X 轴
-                PointF xLeft = vp.WorldToScreen(new PointF(viewRect.Left, 0));
-                PointF xRight = vp.WorldToScreen(new PointF(viewRect.Right, 0));
-                c.DrawLine(xLeft, xRight, xCol, lineW);
+            // X 轴
+            PointF xLeft = vp.WorldToScreen(new PointF(viewRect.Left, 0));
+            PointF xRight = vp.WorldToScreen(new PointF(viewRect.Right, 0));
+            canvas.DrawLine(xLeft, xRight, xCol, lineW);
 
-                // Y 轴
-                PointF yTop = vp.WorldToScreen(new PointF(0, viewRect.Top));
-                PointF yBottom = vp.WorldToScreen(new PointF(0, viewRect.Bottom));
-                c.DrawLine(yTop, yBottom, yCol, lineW);
+            // Y 轴
+            PointF yTop = vp.WorldToScreen(new PointF(0, viewRect.Top));
+            PointF yBottom = vp.WorldToScreen(new PointF(0, viewRect.Bottom));
+            canvas.DrawLine(yTop, yBottom, yCol, lineW);
 
-                // 原点圆点
-                c.FillCircle(originScreen, 3f, Color.Black);
-            });
+            // 原点圆点
+            canvas.FillCircle(originScreen, 3f, Color.Black);
         }
     }
 }

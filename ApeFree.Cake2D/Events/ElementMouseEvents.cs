@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Drawing;
 
 namespace ApeFree.Cake2D.Events
@@ -14,12 +14,28 @@ namespace ApeFree.Cake2D.Events
 
     public class ElementMouseEventArgs : EventArgs
     {
+        private bool? _handled;
+
         public PointF ScreenLocation { get; }
         public PointF WorldLocation { get; }
         public CakeMouseButton Button { get; }
         public int Clicks { get; }
         public int Delta { get; }
-        public bool Handled { get; set; }
+
+        /// <summary>
+        /// 事件是否已被消费或中止冒泡。
+        /// 默认未显式设置时为 false（允许沿父节点链正常冒泡）；
+        /// 若设为 true，则中止向上冒泡；
+        /// 若设为 false，则显式允许穿透到底层视口平移。
+        /// </summary>
+        public bool Handled
+        {
+            get => _handled ?? false;
+            set => _handled = value;
+        }
+
+        /// <summary>获取业务代码是否显式指定了 Handled 属性（null 表示未显式改动）</summary>
+        public bool? ExplicitHandled => _handled;
 
         public ElementMouseEventArgs(PointF screenLoc, PointF worldLoc, CakeMouseButton button, int clicks, int delta)
         {
@@ -28,7 +44,7 @@ namespace ApeFree.Cake2D.Events
             Button = button;
             Clicks = clicks;
             Delta = delta;
-            Handled = false;
+            _handled = null;
         }
     }
 }

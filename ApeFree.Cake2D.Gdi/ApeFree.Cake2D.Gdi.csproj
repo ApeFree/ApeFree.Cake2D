@@ -1,9 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net8.0-windows;net6.0-windows;net472;net461;net452</TargetFrameworks>
+    <TargetFrameworks>net452;net472;net6.0-windows;net8.0-windows;net10.0-windows;netstandard2.0</TargetFrameworks>
     <LangVersion>latest</LangVersion>
-    <UseWindowsForms>true</UseWindowsForms>
     <Company>ApeFree</Company>
     <Authors>Guijie Lee</Authors>
     <Copyright>Copyright © 2022-2026 ApeFree, All Rights Reserved.</Copyright>
@@ -19,9 +18,26 @@
     <PackageRequireLicenseAcceptance>True</PackageRequireLicenseAcceptance>
   </PropertyGroup>
 
-  <ItemGroup Condition="'$(TargetFramework)' == 'net452' Or '$(TargetFramework)' == 'net461' Or '$(TargetFramework)' == 'net472'">
+  <!-- Windows 平台专有配置（启用 Windows Forms 支持） -->
+  <PropertyGroup Condition="$(TargetFramework.EndsWith('-windows')) or '$(TargetFramework)' == 'net452' or '$(TargetFramework)' == 'net472'">
+    <UseWindowsForms>true</UseWindowsForms>
+    <DefineConstants>$(DefineConstants);CAKE2D_WINFORMS</DefineConstants>
+  </PropertyGroup>
+
+  <!-- 非 Windows 桌面目标框架下排除 WinForms 控件源码 -->
+  <ItemGroup Condition="!($(TargetFramework.EndsWith('-windows')) or '$(TargetFramework)' == 'net452' or '$(TargetFramework)' == 'net472')">
+    <Compile Remove="Controls\**" />
+  </ItemGroup>
+
+  <!-- .NET Framework 专有引用 -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net452' or '$(TargetFramework)' == 'net472'">
     <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Drawing" />
+  </ItemGroup>
+
+  <!-- netstandard2.0 下引用 System.Drawing.Common -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
+    <PackageReference Include="System.Drawing.Common" Version="4.7.2" />
   </ItemGroup>
 
   <ItemGroup>
