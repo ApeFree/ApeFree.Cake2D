@@ -22,9 +22,29 @@ namespace ApeFree.Cake2D.Gdi
         // 静态预创建 9 种常用的 StringFormat，避免每帧高频分配与申请 GDI Handle
         private static readonly Dictionary<TextAlignment, StringFormat> StringFormatCache = InitializeStringFormats();
 
-        // 静态对象池：复用 SolidBrush 与 Font，杜绝高频 GDI 句柄创建与内核态切换
+        // 静态对象池与容量安全保护：复用 Pen、SolidBrush 与 Font，杜绝高频 GDI 句柄创建与内存无界膨胀
+        private const int MaxCacheCapacity = 512;
         private static readonly ConcurrentDictionary<int, SolidBrush> BrushCache = new ConcurrentDictionary<int, SolidBrush>();
         private static readonly ConcurrentDictionary<string, Font> FontCache = new ConcurrentDictionary<string, Font>();
+        private static readonly ConcurrentDictionary<PenKey, Pen> PenCache = new ConcurrentDictionary<PenKey, Pen>();
+
+        private readonly struct PenKey : IEquatable<PenKey>
+        {
+            public readonly int Argb;
+            public readonly int WidthKey;
+            public readonly bool Dashed;
+
+            public PenKey(int argb, float width, bool dashed)
+            {
+                Argb = argb;
+                WidthKey = (int)System.Math.Round(width * 20f); // 0.05px 精度量化缓存
+                Dashed = dashed;
+            }
+
+            public bool Equals(PenKey other) => Argb == other.Argb && WidthKey == other.WidthKey && Dashed == other.Dashed;
+            public override bool Equals(object obj) => obj is PenKey other && Equals(other);
+            public override int GetHashCode() => (Argb * 397) ^ (WidthKey * 31) ^ (Dashed ? 1 : 0);
+        }
 
         public Graphics Graphics => _g;
 
@@ -65,28 +85,22 @@ namespace ApeFree.Cake2D.Gdi
 
         public void DrawLine(PointF p1, PointF p2, Color color, float width, bool dashed = false)
         {
-            using (Pen pen = CreatePen(color, width, dashed))
-            {
-                _g.DrawLine(pen, p1, p2);
-            }
+            Pen pen = GetOrCreatePen(color, width, dashed);
+            _g.DrawLine(pen, p1, p2);
         }
 
         public void DrawPolyline(PointF[] points, Color color, float width)
         {
             if (points == null || points.Length < 2) return;
-            using (Pen pen = CreatePen(color, width))
-            {
-                _g.DrawLines(pen, points);
-            }
+            Pen pen = GetOrCreatePen(color, width);
+            _g.DrawLines(pen, points);
         }
 
         public void DrawPolygon(PointF[] points, Color strokeColor, float width)
         {
             if (points == null || points.Length < 2) return;
-            using (Pen pen = CreatePen(strokeColor, width))
-            {
-                _g.DrawPolygon(pen, points);
-            }
+            Pen pen = GetOrCreatePen(strokeColor, width);
+            _g.DrawPolygon(pen, points);
         }
 
         public void FillPolygon(PointF[] points, Color fillColor)
@@ -100,19 +114,15 @@ namespace ApeFree.Cake2D.Gdi
         {
             if (points == null || points.Length < 3) return;
             SolidBrush brush = GetOrCreateBrush(fillColor);
-            using (Pen pen = CreatePen(strokeColor, strokeWidth))
-            {
-                _g.FillPolygon(brush, points);
-                _g.DrawPolygon(pen, points);
-            }
+            Pen pen = GetOrCreatePen(strokeColor, strokeWidth);
+            _g.FillPolygon(brush, points);
+            _g.DrawPolygon(pen, points);
         }
 
         public void DrawRectangle(RectangleF rect, Color color, float width)
         {
-            using (Pen pen = CreatePen(color, width))
-            {
-                _g.DrawRectangle(pen, rect.X, rect.Y, rect.Width, rect.Height);
-            }
+            Pen pen = GetOrCreatePen(color, width);
+            _g.DrawRectangle(pen, rect.X, rect.Y, rect.Width, rect.Height);
         }
 
         public void FillRectangle(RectangleF rect, Color color)
@@ -124,19 +134,15 @@ namespace ApeFree.Cake2D.Gdi
         public void FillAndStrokeRectangle(RectangleF rect, Color fillColor, Color strokeColor, float strokeWidth)
         {
             SolidBrush brush = GetOrCreateBrush(fillColor);
-            using (Pen pen = CreatePen(strokeColor, strokeWidth))
-            {
-                _g.FillRectangle(brush, rect);
-                _g.DrawRectangle(pen, rect.X, rect.Y, rect.Width, rect.Height);
-            }
+            Pen pen = GetOrCreatePen(strokeColor, strokeWidth);
+            _g.FillRectangle(brush, rect);
+            _g.DrawRectangle(pen, rect.X, rect.Y, rect.Width, rect.Height);
         }
 
         public void DrawCircle(PointF center, float radius, Color color, float width)
         {
-            using (Pen pen = CreatePen(color, width))
-            {
-                _g.DrawEllipse(pen, center.X - radius, center.Y - radius, radius * 2f, radius * 2f);
-            }
+            Pen pen = GetOrCreatePen(color, width);
+            _g.DrawEllipse(pen, center.X - radius, center.Y - radius, radius * 2f, radius * 2f);
         }
 
         public void FillCircle(PointF center, float radius, Color color)
@@ -147,10 +153,8 @@ namespace ApeFree.Cake2D.Gdi
 
         public void DrawEllipse(PointF center, float radiusX, float radiusY, Color color, float width)
         {
-            using (Pen pen = CreatePen(color, width))
-            {
-                _g.DrawEllipse(pen, center.X - radiusX, center.Y - radiusY, radiusX * 2f, radiusY * 2f);
-            }
+            Pen pen = GetOrCreatePen(color, width);
+            _g.DrawEllipse(pen, center.X - radiusX, center.Y - radiusY, radiusX * 2f, radiusY * 2f);
         }
 
         public void FillEllipse(PointF center, float radiusX, float radiusY, Color color)
@@ -179,23 +183,52 @@ namespace ApeFree.Cake2D.Gdi
             }
         }
 
-        private Pen CreatePen(Color color, float width, bool dashed = false)
+        private Pen GetOrCreatePen(Color color, float width, bool dashed = false)
         {
             // 将屏幕像素线宽转换为当前变换矩阵下的本地线宽，确保缩放与旋转下屏幕像素宽恒定
             float effectiveWidth = width / _currentScale;
             if (effectiveWidth < 0.0001f) effectiveWidth = 0.0001f;
 
-            Pen pen = new Pen(color, effectiveWidth);
+            var key = new PenKey(color.ToArgb(), effectiveWidth, dashed);
+            if (PenCache.TryGetValue(key, out Pen pen))
+            {
+                return pen;
+            }
+
+            if (PenCache.Count >= MaxCacheCapacity)
+            {
+                foreach (var p in PenCache.Values)
+                {
+                    try { p.Dispose(); } catch { }
+                }
+                PenCache.Clear();
+            }
+
+            Pen newPen = new Pen(color, effectiveWidth);
             if (dashed)
             {
-                pen.DashStyle = DashStyle.Dash;
+                newPen.DashStyle = DashStyle.Dash;
             }
-            return pen;
+            return PenCache.GetOrAdd(key, newPen);
         }
 
         private static SolidBrush GetOrCreateBrush(Color color)
         {
             int argb = color.ToArgb();
+            if (BrushCache.TryGetValue(argb, out SolidBrush brush))
+            {
+                return brush;
+            }
+
+            if (BrushCache.Count >= MaxCacheCapacity)
+            {
+                foreach (var b in BrushCache.Values)
+                {
+                    try { b.Dispose(); } catch { }
+                }
+                BrushCache.Clear();
+            }
+
             return BrushCache.GetOrAdd(argb, c => new SolidBrush(Color.FromArgb(c)));
         }
 
@@ -204,6 +237,21 @@ namespace ApeFree.Cake2D.Gdi
             string name = string.IsNullOrEmpty(fontName) ? "Arial" : fontName;
             float size = fontSize > 0 ? fontSize : 10f;
             string key = $"{name}_{size}_{style}";
+
+            if (FontCache.TryGetValue(key, out Font font))
+            {
+                return font;
+            }
+
+            if (FontCache.Count >= MaxCacheCapacity)
+            {
+                foreach (var f in FontCache.Values)
+                {
+                    try { f.Dispose(); } catch { }
+                }
+                FontCache.Clear();
+            }
+
             return FontCache.GetOrAdd(key, _ => new Font(name, size, style));
         }
 
