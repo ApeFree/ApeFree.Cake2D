@@ -146,10 +146,24 @@ namespace ApeFree.Cake2D.Interaction
 
             if (hit != null)
             {
-                // 命中了可交互图元，默认消费事件，阻止视口平移抢夺控制权
-                e.Handled = true;
-                hit.OnMouseDown(e);
-                return e.Handled;
+                // 事件冒泡路由：优先派发给命中节点，若未消费（Handled=false）则逐级向父容器冒泡
+                Element2D curr = hit;
+                while (curr != null)
+                {
+                    e.Handled = true; // 默认消费，防止视口平移抢夺
+                    curr.OnMouseDown(e);
+                    if (e.Handled) break;
+                    curr = curr.Parent;
+                }
+
+                // 若业务显式将 e.Handled 设为 false，释放独占捕获，允许视口平移响应
+                if (!e.Handled)
+                {
+                    _capturedElement = null;
+                    _pressedElement = null;
+                    return false;
+                }
+                return true;
             }
             return false;
         }
@@ -200,15 +214,32 @@ namespace ApeFree.Cake2D.Interaction
 
             if (target != null)
             {
-                target.OnMouseUp(e);
+                // 向上冒泡派发 MouseUp
+                Element2D curr = target;
+                while (curr != null)
+                {
+                    e.Handled = true;
+                    curr.OnMouseUp(e);
+                    if (e.Handled) break;
+                    curr = curr.Parent;
+                }
                 handled = e.Handled;
 
+                // 判定 Click / DoubleClick 并支持树状冒泡
                 if (target == _hoveredElement || HitTest(e.WorldLocation) == target)
                 {
-                    if (e.Clicks >= 2)
-                        target.OnDoubleClick(e);
-                    else
-                        target.OnClick(e);
+                    curr = target;
+                    while (curr != null)
+                    {
+                        e.Handled = true;
+                        if (e.Clicks >= 2)
+                            curr.OnDoubleClick(e);
+                        else
+                            curr.OnClick(e);
+                        if (e.Handled) break;
+                        curr = curr.Parent;
+                    }
+                    handled = e.Handled;
                 }
                 _pressedElement = null;
             }
