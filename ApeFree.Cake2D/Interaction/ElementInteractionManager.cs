@@ -146,23 +146,25 @@ namespace ApeFree.Cake2D.Interaction
 
             if (hit != null)
             {
-                // 事件冒泡路由：优先派发给命中节点，若未消费（Handled=false）则逐级向父容器冒泡
+                // 事件冒泡路由：优先派发给命中节点，沿父容器链向上冒泡
                 Element2D curr = hit;
                 while (curr != null)
                 {
-                    e.Handled = true; // 默认消费，防止视口平移抢夺
                     curr.OnMouseDown(e);
-                    if (e.Handled) break;
+                    // 只要任一节点显式设置了 Handled = true，主动拦截中止冒泡
+                    if (e.ExplicitHandled == true) break;
                     curr = curr.Parent;
                 }
 
-                // 若业务显式将 e.Handled 设为 false，释放独占捕获，允许视口平移响应
-                if (!e.Handled)
+                // 若业务显式将 e.Handled 设为 false，表明主动放弃拦截，释放独占捕获允许视口平移响应
+                if (e.ExplicitHandled == false)
                 {
                     _capturedElement = null;
                     _pressedElement = null;
                     return false;
                 }
+
+                // 默认规则（业务未显式标记 false）：命中了可交互图元，由图元交互系统消费，阻止视口平移抢夺
                 return true;
             }
             return false;
@@ -176,7 +178,7 @@ namespace ApeFree.Cake2D.Interaction
             if (_capturedElement != null)
             {
                 _capturedElement.OnMouseMove(e);
-                return e.Handled;
+                return e.ExplicitHandled != false;
             }
 
             Element2D hit = HitTest(e.WorldLocation);
@@ -199,7 +201,7 @@ namespace ApeFree.Cake2D.Interaction
             if (_hoveredElement != null)
             {
                 _hoveredElement.OnMouseMove(e);
-                return e.Handled;
+                return e.ExplicitHandled != false;
             }
             return false;
         }
@@ -218,12 +220,11 @@ namespace ApeFree.Cake2D.Interaction
                 Element2D curr = target;
                 while (curr != null)
                 {
-                    e.Handled = true;
                     curr.OnMouseUp(e);
-                    if (e.Handled) break;
+                    if (e.ExplicitHandled == true) break;
                     curr = curr.Parent;
                 }
-                handled = e.Handled;
+                handled = e.ExplicitHandled != false;
 
                 // 判定 Click / DoubleClick 并支持树状冒泡
                 if (target == _hoveredElement || HitTest(e.WorldLocation) == target)
@@ -231,22 +232,21 @@ namespace ApeFree.Cake2D.Interaction
                     curr = target;
                     while (curr != null)
                     {
-                        e.Handled = true;
                         if (e.Clicks >= 2)
                             curr.OnDoubleClick(e);
                         else
                             curr.OnClick(e);
-                        if (e.Handled) break;
+                        if (e.ExplicitHandled == true) break;
                         curr = curr.Parent;
                     }
-                    handled = e.Handled;
+                    handled = e.ExplicitHandled != false;
                 }
                 _pressedElement = null;
             }
             else if (_hoveredElement != null)
             {
                 _hoveredElement.OnMouseUp(e);
-                handled = e.Handled;
+                handled = e.ExplicitHandled != false;
             }
 
             return handled;
