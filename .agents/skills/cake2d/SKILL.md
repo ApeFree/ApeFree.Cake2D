@@ -58,11 +58,13 @@ Cake2D 内部严格区分两个坐标系：
 ## 2. 快速起步与环境集成
 
 ### 2.1 引入 NuGet 依赖
-在 `.csproj` 中添加核心包与 GDI+ 适配器包：
+在 `.csproj` 中添加核心包与渲染适配器包（GDI+ 或 SkiaSharp）：
 ```xml
 <ItemGroup>
-  <PackageReference Include="ApeFree.Cake2D" Version="1.0.2.0-beta260905" />
-  <PackageReference Include="ApeFree.Cake2D.Gdi" Version="1.0.2.0-beta260905" />
+  <PackageReference Include="ApeFree.Cake2D" Version="1.1.0-alpha61112" />
+  <PackageReference Include="ApeFree.Cake2D.Gdi" Version="1.1.0-alpha61112" />
+  <!-- 若使用高性能 SkiaSharp 渲染后端，可改用 ApeFree.Cake2D.Skia -->
+  <!-- <PackageReference Include="ApeFree.Cake2D.Skia" Version="1.1.0-alpha61112" /> -->
 </ItemGroup>
 ```
 
@@ -173,6 +175,7 @@ PointF worldMouse = vp.ScreenToWorld(screenMouse);
 | `IsVisible` | `bool` | 是否可见，为 `false` 时跳过渲染与交互 |
 | `IsInteractive` | `bool` | 是否响应鼠标交互事件，默认为 `true` |
 | `IsHovered` | `bool` | 只读，表示当前鼠标是否悬停在图元上方 |
+| `IsFocused` | `bool` | 表示当前图元是否持有焦点（点击图元自动获焦） |
 | `StrokeColor` | `Color?` | 描边边框颜色，为 `null` 时不绘制边框 |
 | `FillColor` | `Color?` | 内部填充颜色，为 `null` 时透明不填充 |
 | `LineWidth` | `float` | 描边线宽（像素），为 `0` 时采用场景默认线宽 |
@@ -454,7 +457,8 @@ public class ClockDemoControl : UserControl
 - `ApeFree.Cake2D.Elements.Containers`：图元容器（组合组、背景自适应网格、坐标轴）
 - `ApeFree.Cake2D.Math`：二维数学算法与数据结构（`Vector2D`, `Matrix3x2`, `Math2D`）
 - `ApeFree.Cake2D.Events`：图元交互鼠标事件参数（`ElementMouseEventArgs`）
-- `ApeFree.Cake2D.Gdi.Controls`：基于 WinForms 的 GDI+ 视口控件（`Cake2DControl`, `Cake2DBox`）
+- `ApeFree.Cake2D.Gdi.Controls`：基于 WinForms 的 GDI+ 视口控件（`Cake2DControl`, `Cake2DBox`, `Cake2DCanvasForm`）
+- `ApeFree.Cake2D.Skia.Controls`：基于 WinForms 的 SkiaSharp 视口控件（`Cake2DSkiaControl`, `Cake2DSkiaBox`）
 
 ---
 
@@ -469,9 +473,10 @@ public abstract class Element2D
     public bool IsVisible { get; set; }           // 默认: true
     public bool IsInteractive { get; set; }       // 默认: true
     public bool IsHovered { get; }                // 是否处于悬停中
+    public bool IsFocused { get; set; }           // 是否处于聚焦状态
     public int ZIndex { get; set; }               // 排序层级，默认: 0
 
-    // 空间变换
+    // 空间变换（内置脏标记缓存）
     public Vector2D Position { get; set; }        // 局部原点位置
     public float Rotation { get; set; }           // 旋转角（度，顺时针）
     public Vector2D Scale { get; set; }           // 缩放，默认: (1, 1)
@@ -490,12 +495,14 @@ public abstract class Element2D
     public void RemoveChild(Element2D child);
 
     // 矩阵变换与包围盒
+    public void InvalidateTransform();
     public virtual Matrix3x2 GetLocalMatrix();
     public virtual Matrix3x2 GetWorldMatrix();
     public PointF LocalToWorld(PointF localPt);
     public PointF WorldToLocal(PointF worldPt);
     public abstract RectangleF GetLocalBounds();
     public virtual RectangleF GetWorldBounds();
+    public virtual RectangleF GetSubtreeWorldBounds();
     public virtual bool HitTest(PointF worldPoint);
 
     // 鼠标事件
@@ -569,9 +576,11 @@ public abstract class Element2D
 - **构造函数**：
   - `TextElement()`
   - `TextElement(string text, float x = 0, float y = 0)`
+- **静态默认配置**：
+  - `static string DefaultFontName { get; set; }` (默认 `null`，交由底层渲染引擎自适应系统字体；Skia 后端内置多语言阶梯字体回退机制)
 - **特有属性**：
   - `string Text { get; set; }`
-  - `string FontName { get; set; }` (默认 `"Arial"`)
+  - `string FontName { get; set; }` (默认继承自 `DefaultFontName`)
   - `float FontSize { get; set; }` (默认 `12f`)
   - `bool IsBold { get; set; }`
   - `TextAlignment Alignment { get; set; }` (支持 `TopLeft`, `TopCenter`, `TopRight`, `MiddleLeft`, `MiddleCenter`, `MiddleRight`, `BottomLeft`, `BottomCenter`, `BottomRight`)
@@ -581,17 +590,18 @@ public abstract class Element2D
   - `ImageElement()`
   - `ImageElement(object image, float width, float height)`
 - **特有属性**：
-  - `object Image { get; set; }` (WinForms GDI+ 下传入 `System.Drawing.Image` 或 `Bitmap`)
+  - `object Image { get; set; }` (WinForms GDI+ 下传入 `System.Drawing.Image` / `Bitmap`；Skia 下支持 `SKImage` / `SKBitmap` 以及 Windows 环境下向下兼容 `System.Drawing.Image`)
   - `float Width { get; set; }`
   - `float Height { get; set; }`
 
 #### 9. `GroupElement : Element2D` (图元编组/图层)
 - 组合多个子图元，对 GroupElement 的 `Position`、`Rotation`、`Scale` 进行设置会同步对内部所有 Children 生效。
+- 默认 `HitTest` 返回 `false`（支持中空穿透，仅子图元命中并可沿父节点链冒泡至 `GroupElement`）。
 
 #### 10. `GridElement : Element2D` (背景网格图层)
 - 自动根据当前视口漫游视野绘制网格，推荐 `ZIndex = -1000`。
 - `float GridSpacing { get; set; }` (世界间距)
-- `bool AutoScale { get; set; }` (视口缩放时是否自动细分/合并网格线密度)
+- `bool AutoScale { get; set; }` (视口缩放时是否自动细分/合并网格线密度，内置极端视口死循环防护)
 
 #### 11. `AxisElement : Element2D` (坐标系十字轴图层)
 - 自动在视口中绘制穿过 `(0, 0)` 原点的 X 轴与 Y 轴及原点小圆点，推荐 `ZIndex = -900`。
@@ -610,6 +620,7 @@ public class Scene2D
     public Color BackgroundColor { get; set; }         // 场景背景色，默认 White
     public float DefaultLineWidth { get; set; }        // 场景默认线宽，默认 1.5f
     public bool AntiAlias { get; set; }                // 是否开启高品质抗锯齿，默认 true
+    public bool EnableFrustumCulling { get; set; }     // 是否开启视口视锥剔除，默认 true
     public List<Element2D> Elements { get; }           // 顶层图元列表
     public ViewportInteractionState CurrentState { get; set; } // 当前手势状态机
     public ElementInteractionManager InteractionManager { get; }
@@ -643,6 +654,7 @@ public class Viewport2D
     
     public PointF ScreenToWorld(PointF screenPt);
     public PointF WorldToScreen(PointF worldPt);
+    public Matrix3x2 GetWorldToScreenMatrix();         // 获取世界坐标到屏幕像素坐标的仿射矩阵
     public RectangleF GetCurrentWorldViewRect();       // 当前视野覆盖的世界矩形 (AABB)
     public event EventHandler ViewChanged;
 }
@@ -650,31 +662,49 @@ public class Viewport2D
 
 ---
 
-### 6.5 `ApeFree.Cake2D.Gdi.Controls.Cake2DControl`
+### 6.5 视口控件与事件冒泡 (`Cake2DControl` / `Cake2DSkiaControl`)
 
 ```csharp
+// GDI+ 控件 (ApeFree.Cake2D.Gdi.Controls)
 public class Cake2DControl : System.Windows.Forms.UserControl
 {
-    // 绑定的 2D 场景，内部已自动配置双缓冲与鼠标交互拦截
     public Scene2D Scene { get; set; }
-    
-    // 显式请求控件重绘
+    public void Invalidate();
+}
+
+// SkiaSharp 控件 (ApeFree.Cake2D.Skia.Controls)
+public class Cake2DSkiaControl : SkiaSharp.Views.Desktop.SKControl
+{
+    public Scene2D Scene { get; set; }
     public void Invalidate();
 }
 ```
 
+- **交互冒泡与穿透规则（`ElementMouseEventArgs`）**：
+  - 命中可交互图元后，鼠标事件（`MouseDown`、`MouseUp`、`Click`、`DoubleClick`）沿 `Parent` 链向上冒泡。
+  - 默认未显式设置 `e.Handled` 时：允许向上冒泡，且命中可交互图元会阻止底层视口平移抢夺。
+  - 设 `e.Handled = true`：立即中止继续向上冒泡。
+  - 设 `e.Handled = false`：显式允许穿透至视口状态机（如允许拖动画布平移）。
+
 ---
 
-### 6.6 辅助数学计算类 (`ApeFree.Cake2D.Math.Math2D`)
+### 6.6 辅助数学计算类 (`ApeFree.Cake2D.Math.Math2D` 与 `Vector2D`)
 
 - `float Math2D.ToRadians(float degrees)`：角度转弧度
 - `float Math2D.ToDegrees(float radians)`：弧度转角度
-- `PointF Math2D.CalculatePointOnCircle(PointF center, float radius, float angleInDegrees)`：计算圆周上任意指定角度的点
-- `float Math2D.Distance(PointF p1, PointF p2)`：计算两点间欧式距离
-- `bool Math2D.IsPointInPolygon(PointF[] polygon, PointF pt)`：多边形射线法命中判定
-- `bool Math2D.IsPointNearLine(PointF pt, PointF lineStart, PointF lineEnd, float tolerance)`：点在线段附近的拾取容差判定
+- `PointF Math2D.CalculatePointOnCircle(PointF center, float radius, float angleDegrees)`：计算圆周上任意指定角度的点
+- `float Math2D.CalculateLengthFromTwoPoints(PointF p1, PointF p2)`：计算两点间欧氏距离
+- `float Math2D.CalculateAngleFromTwoPoints(PointF p1, PointF p2)`：计算向量角度（`0~360` 度）
+- `PointF Math2D.PointAround(PointF center, PointF point, float rotationAngleDegrees)`：点位绕中心旋转
+- `bool Math2D.IsPointInPolygon(IReadOnlyList<PointF> polygon, PointF point)`：多边形射线法命中判定（零堆分配）
+- `float Math2D.DistanceToLineSegment(PointF pt, PointF p1, PointF p2)`：点到线段最短距离
+- `bool Math2D.IsPointNearLine(PointF pt, PointF p1, PointF p2, float tolerance = 3f)`：点在线段附近的拾取容差判定
 - `RectangleF Math2D.GetBounds(IEnumerable<PointF> points)`：计算点集的 AABB 包围矩形
-- `float Math2D.CalculatePolygonArea(PointF[] points)`：格林公式计算多边形面积
+- `RectangleF Math2D.GetTransformedBounds(RectangleF rect, Matrix3x2 matrix)`：获取矩形经过仿射矩阵变换后的 AABB 包围矩形
+- `float Math2D.CalculatePolygonArea(IReadOnlyList<PointF> polygon)`：格林公式计算多边形面积
+- `float Math2D.CalculatePolygonPerimeter(IReadOnlyList<PointF> polygon)`：计算多边形周长
+- `PointF Math2D.CalculatePolygonCentroid(IReadOnlyList<PointF> polygon)`：计算多边形重心
+- `bool Vector2D.NearlyEquals(Vector2D other, float tolerance = 1e-5f)`：容差范围内近似判等（`==` 为精确判等）
 
 ---
 

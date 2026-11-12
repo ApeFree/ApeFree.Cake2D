@@ -9,13 +9,13 @@
 
 ## 🌟 核心特性
 
-- 🍰 **图层化元素模型**：所有图形都是对象（`Element2D`），支持对图形的颜色、位置、缩放、旋转、可见性及层级顺序进行动态修改与独立控制。
+- 🍰 **图层化元素模型**：所有图形都是对象（`Element2D`），支持对颜色、位置、缩放、旋转、可见性及 `ZIndex` 层级顺序进行动态修改，内置本地/世界变换矩阵脏标记缓存与视口视锥剔除（`EnableFrustumCulling`）。
 - 📐 **丰富的图形元素体系**：
   - 基础图元：矩形 (`RectangleElement`)、圆形 (`CircleElement`)、椭圆 (`EllipseElement`)、线条 (`LineElement`)、多段线 (`PolylineElement`)、多边形 (`PolygonElement`) 等。
-  - 广告牌/注记：图片 (`ImageElement`)、富文本 (`TextElement`)。
-  - 容器/标尺：网格图层 (`GridElement`)、坐标轴 (`AxisElement`)、组合元素 (`GroupElement`)。
-- 🖱 **交互支持**：内置平移、缩放、框选、拖拽及鼠标事件捕获（`ElementInteractionManager`、`DefaultPanZoomState`）。
-- 🔌 **渲染引擎无关**：核心库仅定义抽象图元与画布规范，可通过 `ApeFree.Cake2D.Gdi`（GDI+）或 `ApeFree.Cake2D.Skia`（SkiaSharp）实现跨平台极速渲染。
+  - 广告牌/注记：图片 (`ImageElement`)、文本 (`TextElement`，支持全局默认字体 `DefaultFontName` 与 CAD 模式下正向阅读渲染)。
+  - 容器/标尺：网格图层 (`GridElement`)、坐标轴 (`AxisElement`)、组合元素 (`GroupElement`，支持中空穿透拾取)。
+- 🖱 **交互支持**：内置平移、缩放、焦点与鼠标捕获管理、树状事件冒泡路由及碰撞命中测试（`ElementInteractionManager`、`DefaultPanZoomState`）。
+- 🔌 **渲染引擎无关与多目标支持**：核心库覆盖 `net452`、`net472`、`netstandard2.0`、`netstandard2.1`、`net6.0`、`net8.0`、`net10.0`，可通过 `ApeFree.Cake2D.Gdi` 或 `ApeFree.Cake2D.Skia` 实现多平台渲染。
 
 ---
 
@@ -24,7 +24,7 @@
 通过 NuGet 命令行安装：
 
 ```bash
-dotnet add package ApeFree.Cake2D
+dotnet add package ApeFree.Cake2D --version 1.1.0-alpha61112
 ```
 
 ---
@@ -32,10 +32,11 @@ dotnet add package ApeFree.Cake2D
 ## 🚀 快速上手
 
 ```csharp
-using ApeFree.Cake2D.Elements;
-using ApeFree.Cake2D.Elements.Primitives;
-using ApeFree.Cake2D.Elements.Billboards;
 using System.Drawing;
+using ApeFree.Cake2D.Elements.Billboards;
+using ApeFree.Cake2D.Elements.Containers;
+using ApeFree.Cake2D.Elements.Primitives;
+using ApeFree.Cake2D.Math;
 
 // 1. 创建图形组合
 var group = new GroupElement();
@@ -43,23 +44,24 @@ var group = new GroupElement();
 // 2. 添加矩形和文字
 var rect = new RectangleElement
 {
-    Size = new SizeF(120, 60),
+    Width = 120,
+    Height = 60,
     FillColor = Color.LightSkyBlue,
     StrokeColor = Color.DodgerBlue,
-    StrokeWidth = 2
+    LineWidth = 2f
 };
 
 var text = new TextElement
 {
     Text = "Cake2D 节点",
-    FontColor = Color.DarkSlateBlue,
-    Location = new PointF(10, 20)
+    StrokeColor = Color.DarkSlateBlue,
+    Position = new Vector2D(10, 20)
 };
 
-group.Add(rect);
-group.Add(text);
+group.AddChild(rect);
+group.AddChild(text);
 
-// 3. 将图形交由渲染控件或画布进行渲染（参考 GDI/Skia 扩展库）
+// 3. 将图形加入 Scene2D 并交由 GDI/Skia 渲染控件或画布进行渲染
 ```
 
 ---

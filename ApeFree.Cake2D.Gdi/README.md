@@ -9,18 +9,18 @@
 
 ## 🌟 核心特性
 
-- 🖥 **原生 GDI+ 硬件/软件加速**：在 Windows 平台上提供极简、低依赖的渲染通道。
+- 🖥 **原生 GDI+ 与跨目标支持**：提供 `GdiRenderCanvas` 资源池化（Pen/CosmeticPen/Brush/Font）高效渲染，覆盖 `net452`、`net472`、`netstandard2.0`、`net6.0-windows`、`net8.0-windows`、`net10.0-windows`（非桌面目标仅暴露 `GdiRenderCanvas`，Windows 桌面目标包含完整 WinForms 控件）。
 - 📦 **开箱即用的 WinForms 控件**：
-  - `Cake2DControl`：支持鼠标平移、缩放、图元点击与悬停事件的交互画布控件。
-  - `Cake2DBox`：用于静态或图层展示的轻量化控件。
-  - `Cake2DCanvasForm`：全屏或独立调试用画布窗口。
+  - `Cake2DControl`：支持鼠标平移、缩放、图元点击、悬停与事件冒泡的交互画布控件。
+  - `Cake2DBox`：继承自 `Cake2DControl` 的轻量级画布控件。
+  - `Cake2DCanvasForm`：内置 `Cake2DControl` 的独立画布窗口基类。
 
 ---
 
 ## 📦 安装
 
 ```bash
-dotnet add package ApeFree.Cake2D.Gdi
+dotnet add package ApeFree.Cake2D.Gdi --version 1.1.0-alpha61112
 ```
 
 ---
@@ -31,8 +31,10 @@ dotnet add package ApeFree.Cake2D.Gdi
 
 ```csharp
 using System.Drawing;
-using ApeFree.Cake2D.Controls;
+using System.Windows.Forms;
 using ApeFree.Cake2D.Elements.Primitives;
+using ApeFree.Cake2D.Gdi.Controls;
+using ApeFree.Cake2D.Math;
 
 // 1. 初始化控件
 var cakeControl = new Cake2DControl { Dock = DockStyle.Fill };
@@ -44,10 +46,10 @@ var circle = new CircleElement
     Radius = 40,
     FillColor = Color.LightGreen,
     StrokeColor = Color.DarkGreen,
-    Location = new PointF(100, 100)
+    Position = new Vector2D(100, 100)
 };
 
-cakeControl.Canvas.Elements.Add(circle);
+cakeControl.Scene.Add(circle);
 
 // 3. 刷新画布
 cakeControl.Invalidate();
