@@ -444,9 +444,21 @@ namespace ApeFree.Cake2D.Skia
             }
         }
 
+        private readonly struct TextRun
+        {
+            public readonly string Content;
+            public readonly SKTypeface Typeface;
+
+            public TextRun(string content, SKTypeface typeface)
+            {
+                Content = content;
+                Typeface = typeface;
+            }
+        }
+
         private void DrawMultiRunText(string text, PointF position, Color color, SKTypeface primary, SKFontStyleWeight weight, float fontSize, TextAlignment alignment)
         {
-            var runs = new List<(string Content, SKTypeface Typeface)>();
+            var runs = new List<TextRun>();
             int runStartIndex = 0;
             SKTypeface currentTf = null;
 
@@ -468,7 +480,7 @@ namespace ApeFree.Cake2D.Skia
                 }
                 else if (currentTf != resolved)
                 {
-                    runs.Add((text.Substring(runStartIndex, charStartIndex - runStartIndex), currentTf));
+                    runs.Add(new TextRun(text.Substring(runStartIndex, charStartIndex - runStartIndex), currentTf));
                     currentTf = resolved;
                     runStartIndex = charStartIndex;
                 }
@@ -476,7 +488,7 @@ namespace ApeFree.Cake2D.Skia
 
             if (runStartIndex < text.Length && currentTf != null)
             {
-                runs.Add((text.Substring(runStartIndex, text.Length - runStartIndex), currentTf));
+                runs.Add(new TextRun(text.Substring(runStartIndex, text.Length - runStartIndex), currentTf));
             }
 
             if (runs.Count == 0) return;
